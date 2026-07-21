@@ -1,0 +1,66 @@
+/* Add this to your CSS file for better mobile spacing */
+
+/* Safe area padding utilities */
+.pt-safe {
+    padding-top: env(safe-area-inset-top, 0.5rem);
+}
+
+.pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+}
+
+.calendar-container {
+    /* Ensures the calendar isn't cut off on mobile */
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+
+/* Fix for iOS devices with notches */
+@supports (padding-top: env(safe-area-inset-top)) {
+    .calendar-header {
+        padding-top: max(0.5rem, env(safe-area-inset-top));
+    }
+    
+    .event-sidebar {
+        padding-top: env(safe-area-inset-top);
+    }
+    
+    /* Prevent content from being hidden under the notch */
+    .mobile-safe-padding {
+        padding-top: env(safe-area-inset-top);
+    }
+}
+
+/* Add some extra space at the bottom of scrollable areas on mobile */
+@media (max-width: 768px) {
+    .calendar-grid {
+        padding-bottom: 2rem;
+    }
+    
+    /* Ensure modal is not too close to the edge on mobile */
+    .modal-mobile-margin {
+        margin-top: 2rem;
+        margin-bottom: 2rem;
+    }
+}
+
+/* Fix for the sidebar on mobile */
+@media (max-width: 768px) {
+    .event-sidebar {
+        /* Extra space at the top for notches/status bars */
+        padding-top: max(1rem, env(safe-area-inset-top));
+    }
+    
+    /* Move the close button down a bit to be more reachable */
+    .event-sidebar .close-button {
+        top: max(0.75rem, env(safe-area-inset-top));
+        right: 0.75rem;
+    }
+}
+
+/* Ensure day cells have minimum height on very small screens */
+@media (max-width: 360px) {
+    .calendar-grid .grid-cols-7 > div {
+        min-height: 50px;
+        padding: 0.25rem;
+    }
+}

@@ -1,0 +1,93 @@
+# robots.txt for https://docmey.com/
+# Last updated: May 7, 2025
+
+User-agent: *
+# Allow crawling of main site sections
+Allow: /
+Allow: /about
+Allow: /features/
+Allow: /solutions/
+Allow: /resources/
+Allow: /blog/
+Allow: /case-studies/
+Allow: /contact
+
+# Disallow crawling of user accounts and secure areas
+Disallow: /login
+Disallow: /register
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /user/
+Disallow: /account/
+Disallow: /app/
+Disallow: /api/
+Disallow: /*/download
+Disallow: /*/share
+Disallow: /private/
+
+# Disallow crawling of search results and temporary files
+Disallow: /search
+Disallow: /tmp/
+Disallow: /temp/
+Disallow: /*?*query=
+Disallow: /*?*search=
+Disallow: /*?*filter=
+Disallow: /*?*sort=
+
+# Disallow staging/development areas
+Disallow: /dev/
+Disallow: /staging/
+Disallow: /test/
+
+# Disallow crawling of certain file types
+Disallow: /*.pdf$
+Disallow: /*.doc$
+Disallow: /*.docx$
+Disallow: /*.xls$
+Disallow: /*.xlsx$
+Disallow: /*.ppt$
+Disallow: /*.pptx$
+Disallow: /*.zip$
+
+# Disallow crawling of utility directories
+Disallow: /includes/
+Disallow: /js/
+Disallow: /css/
+Disallow: /vendor/
+Disallow: /node_modules/
+Disallow: /storage/
+
+# Crawl delay directive (optional - helps prevent server overload)
+Crawl-delay: 10
+
+# Sitemap location
+Sitemap: https://docmey.com/sitemap.xml
+
+# Specific instructions for various bots
+User-agent: Googlebot
+Allow: /*.js$
+Allow: /*.css$
+
+User-agent: Googlebot-Image
+Allow: /images/
+Allow: /assets/img/
+Allow: /public/img/
+
+User-agent: Bingbot
+Crawl-delay: 15
+
+User-agent: Slurp
+Crawl-delay: 15
+
+# Block certain aggressive or unwanted bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: Baiduspider
+Disallow: /

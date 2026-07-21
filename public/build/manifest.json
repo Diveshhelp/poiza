@@ -1,0 +1,19 @@
+{
+  "resources/css/app.css": {
+    "file": "assets/app-DCSBLoyk.css",
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-CqflisoM.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  },
+  "resources/js/razorpay-integration.js": {
+    "file": "assets/razorpay-integration-D5fQ895a.js",
+    "name": "razorpay-integration",
+    "src": "resources/js/razorpay-integration.js",
+    "isEntry": true
+  }
+}
