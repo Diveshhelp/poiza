@@ -45,14 +45,24 @@
         </div>
     @endif
 
-    <!-- STEP 1: SELECT PRODUCTS & VIEW CART -->
+    <!-- STEP 1: SELECT PRODUCTS & SELECTION LIST -->
     @if($step === 1)
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="md:col-span-2 space-y-4">
                 
-                <!-- Search & Filter Bar for MyProduct attributes -->
-                <div class="flex gap-2">
-                    <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search by name, code, alias, or finish..." class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                <!-- Search & Filter Bar with Embedded Loader Spinner -->
+                <div class="flex gap-2 relative">
+                    <div class="relative w-full">
+                        <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search by name, code, alias, or finish..." class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 pr-10">
+                        
+                        <!-- Search Spinner Icon -->
+                        <div wire:loading wire:target="search, selectedCategory" class="absolute right-3 top-2.5">
+                            <svg class="animate-spin h-5 w-5 text-indigo-600 dark:text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </div>
+                    </div>
                     
                     <select wire:model.live="selectedCategory" class="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600">
                         <option value="">All Categories</option>
@@ -64,63 +74,82 @@
 
                 <h3 class="font-bold text-gray-800 dark:text-gray-200">Hardware Catalog</h3>
                 
-                <div class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                    @forelse($products as $product)
-                        <div class="flex justify-between items-center p-3 border rounded-xl dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 gap-4">
-                            
-                            <!-- Optional Product Image Display -->
-                            @if($product->image)
-                                <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->product_name }}" class="w-12 h-12 object-cover rounded-lg border dark:border-gray-600">
-                            @endif
-
-                            <div class="flex-1">
-                                <h4 class="font-bold text-sm text-gray-900 dark:text-white">{{ $product->product_name }}</h4>
-                                <div class="flex flex-wrap gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-mono mt-0.5">
-                                    <span>Code: {{ $product->product_code }}</span>
-                                    @if($product->product_alias)<span>| Alias: {{ $product->product_alias }}</span>@endif
-                                </div>
-                                <div class="flex gap-3 text-xs text-gray-600 dark:text-gray-300 mt-1">
-                                    @if($product->finish)<span><strong>Finish:</strong> {{ $product->finish }}</span>@endif
-                                    @if($product->size)<span><strong>Size:</strong> {{ $product->size }}</span>@endif
-                                </div>
-                            </div>
-
-                            <div class="flex items-center gap-2">
-                                <input type="number" min="1" wire:model="productQuantities.{{ $product->id }}" class="w-16 px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:text-white dark:border-gray-600">
-                                <button wire:click="addToCart({{ $product->id }})" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition shadow">Add</button>
-                            </div>
+                <div class="space-y-3 max-h-[500px] overflow-y-auto pr-2 relative">
+                    
+                    <!-- Full Area Loading Overlay State -->
+                    <div wire:loading wire:target="search, selectedCategory" class="absolute inset-0 bg-white/70 dark:bg-gray-800/70 backdrop-blur-xs flex items-center justify-center z-10 rounded-xl">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-gray-900 px-4 py-2 rounded-lg shadow border dark:border-gray-700">
+                            <svg class="animate-spin h-5 w-5 text-indigo-600 dark:text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Searching Catalog...
                         </div>
-                    @empty
-                        <p class="text-sm text-gray-500 text-center py-8">No products found matching your search.</p>
-                    @endforelse
+                    </div>
+
+                    @if(empty(trim($search)) && empty($selectedCategory))
+                        <div class="text-center py-12 text-gray-400 dark:text-gray-500 italic text-sm">
+                            🔍 Please type a product name, code, or finish above to search the catalog.
+                        </div>
+                    @else
+                        @forelse($products as $product)
+                            <div class="flex justify-between items-center p-3 border rounded-xl dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 gap-4">
+                                
+                                @if($product->image)
+                                    <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->product_name }}" class="w-12 h-12 object-cover rounded-lg border dark:border-gray-600">
+                                @endif
+
+                                <div class="flex-1">
+                                    <h4 class="font-bold text-sm text-gray-900 dark:text-white">{{ $product->product_name }}</h4>
+                                    <div class="flex flex-wrap gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-mono mt-0.5">
+                                        <span>Code: {{ $product->product_code }}</span>
+                                        @if($product->product_alias)<span>| Alias: {{ $product->product_alias }}</span>@endif
+                                    </div>
+                                    <div class="flex gap-3 text-xs text-gray-600 dark:text-gray-300 mt-1">
+                                        @if($product->finish)<span><strong>Finish:</strong> {{ $product->finish }}</span>@endif
+                                        @if($product->size)<span><strong>Size:</strong> {{ $product->size }}</span>@endif
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-2">
+                                    <input type="number" min="1" wire:model="productQuantities.{{ $product->id }}" class="w-16 px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:text-white dark:border-gray-600">
+                                    <button wire:click="addToCart({{ $product->id }})" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition shadow">Add</button>
+                                </div>
+                            </div>
+                        @empty
+                            <p class="text-sm text-gray-500 text-center py-8">No products found matching your search parameters.</p>
+                        @endforelse
+
+                        <!-- Pagination Links -->
+                        @if(method_exists($products, 'links'))
+                            <div class="mt-4">
+                                {{ $products->links() }}
+                            </div>
+                        @endif
+                    @endif
                 </div>
             </div>
 
-            <!-- Cart Summary Panel -->
+            <!-- Selection / Order Summary Panel -->
             <div class="bg-gray-50 dark:bg-gray-700/20 p-4 rounded-xl border dark:border-gray-700 flex flex-col justify-between">
                 <div>
-                    <h3 class="font-bold text-gray-800 dark:text-gray-200 mb-3">Order Summary</h3>
+                    <h3 class="font-bold text-gray-800 dark:text-gray-200 mb-3">Selected Items</h3>
                     @if(empty($this->cart))
-                        <p class="text-xs text-gray-500 italic">Your cart is empty.</p>
+                        <p class="text-xs text-gray-500 italic">No products added yet.</p>
                     @else
-                        <div class="space-y-2 mb-4 max-h-[300px] overflow-y-auto">
+                        <div class="space-y-2 mb-4 max-h-[350px] overflow-y-auto">
                             @foreach($this->cartItems as $item)
                                 <div class="flex justify-between items-center text-xs border-b pb-2 dark:border-gray-700">
                                     <div>
                                         <div class="font-semibold text-gray-900 dark:text-white">{{ $item['product']->product_name }}</div>
-                                        <div class="text-gray-500">{{ $item['quantity'] }} x ₹{{ number_format($item['subtotal'] / max($item['quantity'], 1), 2) }}</div>
+                                        <div class="text-gray-500 font-mono text-[10px]">Code: {{ $item['product']->product_code }}</div>
                                     </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-bold">₹{{ number_format($item['subtotal'], 2) }}</span>
-                                        <button wire:click="removeFromCart({{ $item['product']->id }})" class="text-red-500 hover:text-red-700 font-bold">&times;</button>
+                                    <div class="flex items-center gap-3">
+                                        <span class="bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded">Qty: {{ $item['quantity'] }}</span>
+                                        <button wire:click="removeFromCart({{ $item['product']->id }})" class="text-red-500 hover:text-red-700 font-bold text-base">&times;</button>
                                     </div>
                                 </div>
                             @endforeach
-                        </div>
-                        <div class="border-t pt-2 space-y-1 text-xs dark:border-gray-700">
-                            <div class="flex justify-between"><span>Subtotal:</span><span>₹{{ number_format($this->subtotal, 2) }}</span></div>
-                            <div class="flex justify-between"><span>GST (18%):</span><span>₹{{ number_format($this->taxAmount, 2) }}</span></div>
-                            <div class="flex justify-between font-bold text-sm text-gray-900 dark:text-white pt-1"><span>Total:</span><span>₹{{ number_format($this->totalAmount, 2) }}</span></div>
                         </div>
                     @endif
                 </div>

@@ -7,15 +7,18 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Customer;
 use Livewire\Component;
+use Livewire\WithPagination;
 use Illuminate\Support\Str;
 
 class StorefrontOrderForm extends Component
 {
+    use WithPagination;
+
     // Mobile Verification Access Control
     public $isAuthorized = false;
     public $auth_phone = '';
 
-    public $step = 1; // 1: Select Items, 2: Customer Details, 3: Order Confirmation
+    public $step = 1; 
     
     // Search and Catalog filters
     public $search = '';
@@ -33,22 +36,22 @@ class StorefrontOrderForm extends Component
 
     public $placedOrder;
 
+    public function updatingSearch()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingSelectedCategory()
+    {
+        $this->resetPage();
+    }
+
     public function mount()
     {
         if (session()->has('verified_customer_phone')) {
             $this->isAuthorized = true;
             $this->customer_phone = session('verified_customer_phone');
             $this->loadExistingCustomerData($this->customer_phone);
-        }
-
-        $this->initializeQuantities();
-    }
-
-    private function initializeQuantities()
-    {
-        $products = MyProduct::all();
-        foreach ($products as $product) {
-            $this->productQuantities[$product->id] = 1;
         }
     }
 
@@ -81,24 +84,28 @@ class StorefrontOrderForm extends Component
 
     public function render()
     {
-        $query = MyProduct::query();
+        // Only fetch products if the user has typed a search or picked a category
+        if (empty(trim($this->search)) && empty($this->selectedCategory)) {
+            $products = collect(); // Returns an empty collection
+        } else {
+            $query = MyProduct::query();
 
-        // Search logic across new attributes
-        if (!empty($this->search)) {
-            $query->where(function($q) {
-                $q->where('product_name', 'like', '%' . $this->search . '%')
-                  ->orWhere('product_code', 'like', '%' . $this->search . '%')
-                  ->orWhere('product_alias', 'like', '%' . $this->search . '%')
-                  ->orWhere('finish', 'like', '%' . $this->search . '%');
-            });
+            if (!empty($this->search)) {
+                $query->where(function($q) {
+                    $q->where('product_name', 'like', '%' . $this->search . '%')
+                      ->orWhere('product_code', 'like', '%' . $this->search . '%')
+                      ->orWhere('product_alias', 'like', '%' . $this->search . '%')
+                      ->orWhere('finish', 'like', '%' . $this->search . '%');
+                });
+            }
+
+            if (!empty($this->selectedCategory)) {
+                $query->where('product_category', $this->selectedCategory);
+            }
+
+            $products = $query->paginate(20);
         }
 
-        // Category filter logic
-        if (!empty($this->selectedCategory)) {
-            $query->where('product_category', $this->selectedCategory);
-        }
-
-        $products = $query->get();
         $categories = MyProduct::whereNotNull('product_category')->distinct()->pluck('product_category');
 
         return view('livewire.storefront-order-form', [
@@ -112,7 +119,6 @@ class StorefrontOrderForm extends Component
         $qty = max(1, (int)($this->productQuantities[$productId] ?? 1));
         $this->cart[$productId] = ($this->cart[$productId] ?? 0) + $qty;
         
-        // Reset default input quantity back to 1 for convenience
         $this->productQuantities[$productId] = 1;
         
         session()->flash('message', 'Product added to your order summary.');
@@ -143,9 +149,6 @@ class StorefrontOrderForm extends Component
 
         return $products->map(function($product) {
             $qty = $this->cart[$product->id];
-            
-            // Assuming fallback unit price or fetching if added. Let's look for standard price or use 0 if not defined.
-            // If price column exists on MyProduct, use it. E.g., $product->selling_price
             $unitPrice = $product->selling_price ?? 0; 
 
             return [
@@ -163,7 +166,7 @@ class StorefrontOrderForm extends Component
 
     public function getTaxAmountProperty()
     {
-        return $this->subtotal * 0.18; // 18% GST calculation
+        return $this->subtotal * 0.18; 
     }
 
     public function getTotalAmountProperty()
@@ -231,7 +234,6 @@ class StorefrontOrderForm extends Component
                     'subtotal' => $unitPrice * $qty,
                 ]);
 
-                // Reduce inventory if stock_quantity column exists
                 if (isset($product->stock_quantity)) {
                     $product->decrement('stock_quantity', $qty);
                 }
@@ -248,6 +250,7 @@ class StorefrontOrderForm extends Component
         $this->step = 1;
         $this->placedOrder = null;
         $this->cart = [];
-        $this->initializeQuantities();
+        $this->search = '';
+        $this->selectedCategory = '';
     }
 }
