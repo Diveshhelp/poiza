@@ -30,7 +30,6 @@ class UserManager extends Component
     public $importedCount = 0;
     public $errorCount = 0;
     public $processingComplete = false;
-    public $errors = [];
     public $mappings = [
         'name' => 'name',
         'email' => 'email',
@@ -42,6 +41,15 @@ class UserManager extends Component
     public $showMappingStep = false;
     public $confirmingUserDeletion = false;
     public $userIdBeingDeleted;
+
+    // Properties for creating a new user manually
+    public $showCreateModal = false;
+    public $name = '';
+    public $email = '';
+    public $mobile = '';
+    public $security_code = '';
+    public $password = '';
+    public $status = '1';
     
     protected $rules = [
         'csvFile' => 'required|file|mimes:csv,txt|max:5120', // 5MB max
@@ -55,12 +63,13 @@ class UserManager extends Component
     public $useActivePlanData;
     public $loading=false;
     public $selectedStatus;
+
     public function mount()
     {
-        $this->team_id=Auth::user()->currentTeam->id;
+        $this->team_id = Auth::user()->currentTeam->id;
         // Load roles from database
         $this->roles = Role::select('id', 'name')->get()->toArray();
-        $this->activePlans=[
+        $this->activePlans = [
             'Bonus' => env('PLAN_TRIAL_ALLOW'),
             'Subscription Trial' => env('PLAN_TRIAL_ALLOW'),
             env('PLAN_ONE') => env('PLAN_ONE_ALLOW'),
@@ -71,18 +80,62 @@ class UserManager extends Component
         $this->getQuota();
     }
 
-    public function getQuota(){
+    public function getQuota()
+    {
         $this->useActivePlanData = TeamSubscriptions::where('team_id', auth()->user()->currentTeam->id)
         ->where('status', 'active')
-        ->where('plan_id',"!=",'Bonus')
+        ->where('plan_id', "!=", 'Bonus')
         ->where('ends_at', '>', Carbon::now())
         ->latest('starts_at')
         ->first();
        
-        $planType = $this->useActivePlanData->plan_id??'trial';
-        $this->quota =$this->activePlans[$planType]??0;
-        $this->totalUsers = User::where("current_team_id",$this->team_id)->count();
-        $this->pendingUsers=$this->quota-$this->totalUsers;
+        $planType = $this->useActivePlanData->plan_id ?? 'trial';
+        $this->quota = $this->activePlans[$planType] ?? 0;
+        $this->totalUsers = User::where("current_team_id", $this->team_id)->count();
+        $this->pendingUsers = $this->quota - $this->totalUsers;
+    }
+
+    // Method to create a new user manually
+    public function createUser()
+    {
+        $validatedData = $this->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'email', Rule::unique('users', 'email')],
+            'mobile' => 'nullable|string|max:20',
+            'security_code' => 'nullable|string|max:255',
+            'password' => 'required|min:6',
+            'status' => 'required|in:0,1,2,3',
+        ]);
+
+        try {
+            $user = new User();
+            $user->uuid = Str::uuid()->toString();
+            $user->name = $this->name;
+            $user->email = $this->email;
+            $user->mobile = $this->mobile ?? null;
+            $user->security_code = $this->security_code ?? null;
+            $user->current_team_id = $this->team_id;
+            $user->email_verified_at = date('Y-m-d H:i:s');
+            $user->password = Hash::make($this->password);
+            
+            // Assign default role if available, or fetch standard slug
+            $defaultRole = Role::select('id')->where("slug", 5)->orderBy("id", "DESC")->first();
+            $user->user_role = $defaultRole ? $defaultRole->id : null;
+            
+            $user->unsubscribe_token = Str::random(32);
+            $user->status = $this->status;
+            $user->save();
+
+            // Reset form inputs and close modal
+            $this->reset(['name', 'email', 'mobile', 'security_code', 'password', 'status', 'showCreateModal']);
+            $this->getQuota();
+
+            $this->dispatch('notify-success', 'User successfully created');
+            session()->flash('message', 'User created successfully.');
+        } catch (\Exception $e) {
+            $this->dispatch('notify-error', 'Error creating user: ' . $e->getMessage());
+            Log::error($e->getMessage());
+        }
     }
 
     // Reset pagination when search or filter changes
@@ -122,14 +175,12 @@ class UserManager extends Component
             'rejected' => (clone $baseQuery)->where('status', '3')->count(),
             'all' => $baseQuery->count()
         ];
-
     }
 
     public function updateUserRoles($userId, $roleIds)
     {
         $user = User::find($userId);
         if ($user) {
-            // Convert array to comma-separated string
             $roleString = !empty($roleIds) ? implode(',', $roleIds) : null;
             $user->update(['user_role' => $roleString]);
            
@@ -173,7 +224,6 @@ class UserManager extends Component
             $this->headers = $csv->getHeader();
             $records = $csv->getRecords();
            
-            // Get first 5 rows for preview
             $this->previewData = [];
             $counter = 0;
             foreach ($records as $record) {
@@ -200,31 +250,25 @@ class UserManager extends Component
             $this->errorCount = 0;
             $this->errors = [];
            
-            // Get current team and its plan
             $teamPlan = TeamSubscriptions::where('team_id', auth()->user()->currentTeam->id)
             ->where('status', 'active')
-            ->where('plan_id',"!=",'Bonus')
+            ->where('plan_id', "!=", 'Bonus')
             ->where('ends_at', '>', Carbon::now())
             ->latest('starts_at')
             ->first();
-            $planType = $teamPlan->plan_id??'trial';
+            $planType = $teamPlan->plan_id ?? 'trial';
            
-            // Get max users allowed based on plan type from environment variables
-            $maxUsers =$this->activePlans[$planType];
-            // Get current user count for this team
+            $maxUsers = $this->activePlans[$planType];
             $currentUserCount = User::where('current_team_id', $this->team_id)->count();
-           
-            // Calculate how many more users can be added
             $remainingSlots = $maxUsers - $currentUserCount;
-         
+           
             foreach ($records as $index => $record) {
                 $rowIndex = $index + 2;
                 $userData = $this->mapRow($record);
                
                 if ($this->validateRow($userData, $rowIndex)) {
-                    // Check if we've exceeded the plan limit
                     if ($remainingSlots <= 0) {
-                        $this->errors['import']=["Your plan allows a maximum of {$maxUsers} users. Please upgrade your plan to add more users."];
+                        $this->errors['import'] = ["Your plan allows a maximum of {$maxUsers} users. Please upgrade your plan to add more users."];
                         $this->errorCount++;
                         continue;
                     }
@@ -233,13 +277,15 @@ class UserManager extends Component
                     $user->uuid = Str::uuid()->toString();
                     $user->name = $userData['name'];
                     $user->email = $userData['email'];
+                    $user->mobile = $userData['mobile'] ?? null;
                     $user->security_code = $userData['security_code'];
                     $user->current_team_id = $this->team_id;
                     $user->email_verified_at = date('Y-m-d H:i:s');
                     $user->password = Hash::make($userData['security_code']);
-                    $user->user_role=Role::select('id')->where("slug",5)->orderBy("id","DESC")->first()->id;
+                    $defaultRole = Role::select('id')->where("slug", 5)->orderBy("id", "DESC")->first();
+                    $user->user_role = $defaultRole ? $defaultRole->id : null;
                     $user->unsubscribe_token = Str::random(32);
-                    $user->status=1;
+                    $user->status = 1;
                     $user->save();
                    
                     $remainingSlots--;
@@ -250,6 +296,7 @@ class UserManager extends Component
             }
            
             $this->processingComplete = true;
+            $this->getQuota();
         } catch (\Exception $e) {
             $this->dispatch('notify-error', 'Error creating users : ' . $e->getMessage());
             Log::error($e->getMessage());
@@ -259,11 +306,9 @@ class UserManager extends Component
     protected function mapRow($record)
     {
         $result = [];
-       
         foreach ($this->mappings as $userField => $csvField) {
             $result[$userField] = $csvField && isset($record[$csvField]) ? $record[$csvField] : null;
         }
-       
         return $result;
     }
 
@@ -329,6 +374,7 @@ class UserManager extends Component
         $user = User::findOrFail($this->userIdBeingDeleted);
         $user->delete();
         $this->confirmingUserDeletion = false;
+        $this->getQuota();
         $this->dispatch('notify-success', "User successfully deleted");
     }
    
@@ -336,24 +382,13 @@ class UserManager extends Component
     {
         try {
             $user = User::findOrFail($userId);
-           
-            // Toggle status: if active, make inactive; if inactive (or null), make active
             $newStatus = $user->status === '1' ? '2' : '1';
-           
             $user->update(['status' => $newStatus]);
            
-            // Show success message
             $statusText = $newStatus === '1' ? 'activated' : 'deactivated';
             session()->flash('message', "User {$user->name} has been {$statusText} successfully.");
-           
-            // Optional: Emit event for other components
-            $this->emit('userStatusUpdated', $userId, $newStatus);
-           
         } catch (\Exception $e) {
-            // Handle error
             session()->flash('error', 'Failed to update user status. Please try again.');
-           
-            // Log the error for debugging
             \Log::error('Failed to toggle user status: ' . $e->getMessage(), [
                 'user_id' => $userId,
                 'error' => $e
@@ -371,21 +406,10 @@ class UserManager extends Component
             $user = User::findOrFail($userId);
             $user->update(['status' => $this->selectedStatus]);
             
-            // Refresh the user model
-            $this->user = $user->fresh();
-            
-            // Reset dropdown to show current status
-            $this->selectedStatus = $this->user->status;
-            
-            // Optional: Show success message
+            $this->selectedStatus = $user->status;
             session()->flash('message', 'Status updated successfully');
-            
         } catch (\Exception $e) {
-            // Handle error
             session()->flash('error', 'Failed to update status');
-            
-            // Reset dropdown
-            $this->selectedStatus = $this->user->status;
         }
     }
 
@@ -403,12 +427,11 @@ class UserManager extends Component
     {
         return $this->getStatusOptions()[$status] ?? 'Unknown';
     }
+
     public function render()
     {
-        // Build the query with filters
         $query = User::where("current_team_id", $this->team_id);
 
-        // Apply search filter
         if (!empty($this->search)) {
             $query->where(function ($q) {
                 $q->where('name', 'like', '%'.$this->search.'%')
@@ -416,17 +439,13 @@ class UserManager extends Component
             });
         }
 
-        // Apply status filter
         if ($this->statusFilter !== 'all') {
             $query->where('status', $this->statusFilter);
         }
 
         $users = $query->orderBy("created_at", "DESC")->paginate(100);
-
-        // Get counts for filter buttons
         $filterCounts = $this->getFilteredCounts();
 
-        
         return view('livewire.user-content', [
             'users' => $users,
             'filterCounts' => $filterCounts,

@@ -1,4 +1,4 @@
-<div class="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-800 shadow-xl rounded-2xl my-8 border border-gray-200 dark:border-gray-700">
+<div class="max-w-5xl mx-auto p-6 bg-white dark:bg-gray-800 shadow-xl rounded-2xl my-8 border border-gray-200 dark:border-gray-700">
     
     <!-- IF NOT VERIFIED: MOBILE NUMBER ENTRY SCREEN -->
     @if(!$isAuthorized)
@@ -49,22 +49,49 @@
     @if($step === 1)
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="md:col-span-2 space-y-4">
-                <h3 class="font-bold text-gray-800 dark:text-gray-200">Available Hardware Catalog</h3>
+                
+                <!-- Search & Filter Bar for MyProduct attributes -->
+                <div class="flex gap-2">
+                    <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search by name, code, alias, or finish..." class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                    
+                    <select wire:model.live="selectedCategory" class="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                        <option value="">All Categories</option>
+                        @foreach($categories as $cat)
+                            <option value="{{ $cat }}">{{ $cat }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <h3 class="font-bold text-gray-800 dark:text-gray-200">Hardware Catalog</h3>
+                
                 <div class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
                     @forelse($products as $product)
-                        <div class="flex justify-between items-center p-3 border rounded-xl dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
-                            <div>
-                                <h4 class="font-bold text-sm text-gray-900 dark:text-white">{{ $product->name }}</h4>
-                                <span class="text-xs text-indigo-600 dark:text-indigo-400 font-mono">SKU: {{ $product->sku }}</span>
-                                <div class="text-xs font-semibold text-gray-700 dark:text-gray-300 mt-1">₹{{ number_format($product->selling_price, 2) }} / {{ $product->unit }}</div>
+                        <div class="flex justify-between items-center p-3 border rounded-xl dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 gap-4">
+                            
+                            <!-- Optional Product Image Display -->
+                            @if($product->image)
+                                <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->product_name }}" class="w-12 h-12 object-cover rounded-lg border dark:border-gray-600">
+                            @endif
+
+                            <div class="flex-1">
+                                <h4 class="font-bold text-sm text-gray-900 dark:text-white">{{ $product->product_name }}</h4>
+                                <div class="flex flex-wrap gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-mono mt-0.5">
+                                    <span>Code: {{ $product->product_code }}</span>
+                                    @if($product->product_alias)<span>| Alias: {{ $product->product_alias }}</span>@endif
+                                </div>
+                                <div class="flex gap-3 text-xs text-gray-600 dark:text-gray-300 mt-1">
+                                    @if($product->finish)<span><strong>Finish:</strong> {{ $product->finish }}</span>@endif
+                                    @if($product->size)<span><strong>Size:</strong> {{ $product->size }}</span>@endif
+                                </div>
                             </div>
+
                             <div class="flex items-center gap-2">
-                                <input type="number" min="1" wire:model="productQuantities.{{ $product->id }}" class="w-16 px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:text-white">
-                                <button wire:click="addToCart({{ $product->id }})" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition">Add</button>
+                                <input type="number" min="1" wire:model="productQuantities.{{ $product->id }}" class="w-16 px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:text-white dark:border-gray-600">
+                                <button wire:click="addToCart({{ $product->id }})" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition shadow">Add</button>
                             </div>
                         </div>
                     @empty
-                        <p class="text-sm text-gray-500">No active products available.</p>
+                        <p class="text-sm text-gray-500 text-center py-8">No products found matching your search.</p>
                     @endforelse
                 </div>
             </div>
@@ -80,8 +107,8 @@
                             @foreach($this->cartItems as $item)
                                 <div class="flex justify-between items-center text-xs border-b pb-2 dark:border-gray-700">
                                     <div>
-                                        <div class="font-semibold text-gray-900 dark:text-white">{{ $item['product']->name }}</div>
-                                        <div class="text-gray-500">{{ $item['quantity'] }} x ₹{{ number_format($item['product']->selling_price, 2) }}</div>
+                                        <div class="font-semibold text-gray-900 dark:text-white">{{ $item['product']->product_name }}</div>
+                                        <div class="text-gray-500">{{ $item['quantity'] }} x ₹{{ number_format($item['subtotal'] / max($item['quantity'], 1), 2) }}</div>
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <span class="font-bold">₹{{ number_format($item['subtotal'], 2) }}</span>
@@ -112,6 +139,7 @@
                 <h3 class="font-bold text-gray-800 dark:text-gray-200">Customer & Shipping Information</h3>
                 <button type="button" wire:click="$set('step', 1)" class="text-xs text-indigo-600 underline">&larr; Back to Products</button>
             </div>
+            
             <!-- INVISIBLE SPAM BOT TRAP (HONEYPOT) -->
             <div style="display:none;" aria-hidden="true">
                 <label>Website URL</label>
@@ -177,7 +205,7 @@
             </div>
             <p class="text-xs text-gray-500">We have received your request and will contact you shortly regarding fulfillment.</p>
             <div class="pt-4">
-                <button wire:click="$set('step', 1); $set('placedOrder', null)" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold shadow">Place Another Order</button>
+                <button wire:click="resetOrder" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold shadow">Place Another Order</button>
             </div>
         </div>
     @endif

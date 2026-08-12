@@ -2,9 +2,10 @@
 
 namespace App\Livewire;
 
-use App\Models\Product;
+use App\Models\MyProduct;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Customer;
 use Livewire\Component;
 use Illuminate\Support\Str;
 
@@ -16,29 +17,36 @@ class StorefrontOrderForm extends Component
 
     public $step = 1; // 1: Select Items, 2: Customer Details, 3: Order Confirmation
     
-    // Cart storage: [product_id => quantity]
+    // Search and Catalog filters
+    public $search = '';
+    public $selectedCategory = '';
+
+    // Cart storage: [my_product_id => quantity]
     public $cart = [];
     public $productQuantities = [];
 
     // Customer & Checkout Details
     public $customer_name, $customer_email, $customer_phone, $shipping_address, $payment_method = 'cod', $notes;
 
-    // Honeypot Spam Protection (Bots fill this, humans don't see it)
+    // Honeypot Spam Protection
     public $website = '';
 
     public $placedOrder;
-    public $customer;
 
     public function mount()
     {
-        // Check if mobile number is already verified in this session
         if (session()->has('verified_customer_phone')) {
             $this->isAuthorized = true;
             $this->customer_phone = session('verified_customer_phone');
             $this->loadExistingCustomerData($this->customer_phone);
         }
 
-        $products = Product::where('status', 'active')->get();
+        $this->initializeQuantities();
+    }
+
+    private function initializeQuantities()
+    {
+        $products = MyProduct::all();
         foreach ($products as $product) {
             $this->productQuantities[$product->id] = 1;
         }
@@ -54,31 +62,48 @@ class StorefrontOrderForm extends Component
 
         $cleanPhone = trim($this->auth_phone);
         
-        // Save to session and set phone number
         session(['verified_customer_phone' => $cleanPhone]);
         $this->customer_phone = $cleanPhone;
         $this->isAuthorized = true;
 
-        // Automatically fetch and fill user information if they ordered before
         $this->loadExistingCustomerData($cleanPhone);
     }
 
     private function loadExistingCustomerData($phone)
     {
-        
-        // Search directly in the customers table by phone number
-        $customer = \App\Models\Customer::where('phone', 'like', '%' . $phone . '%')->first();
+        $customer = Customer::where('phone', 'like', '%' . $phone . '%')->first();
         if ($customer) {
             $this->customer_name = $customer->name;
             $this->customer_email = $customer->email;
-            $this->shipping_address = $customer->address; // Update column name if it differs in your customers table
+            $this->shipping_address = $customer->address; 
         }
     }
+
     public function render()
     {
-        $products = Product::where('status', 'active')->with('category')->get();
+        $query = MyProduct::query();
+
+        // Search logic across new attributes
+        if (!empty($this->search)) {
+            $query->where(function($q) {
+                $q->where('product_name', 'like', '%' . $this->search . '%')
+                  ->orWhere('product_code', 'like', '%' . $this->search . '%')
+                  ->orWhere('product_alias', 'like', '%' . $this->search . '%')
+                  ->orWhere('finish', 'like', '%' . $this->search . '%');
+            });
+        }
+
+        // Category filter logic
+        if (!empty($this->selectedCategory)) {
+            $query->where('product_category', $this->selectedCategory);
+        }
+
+        $products = $query->get();
+        $categories = MyProduct::whereNotNull('product_category')->distinct()->pluck('product_category');
+
         return view('livewire.storefront-order-form', [
-            'products' => $products
+            'products' => $products,
+            'categories' => $categories
         ])->layout('layouts.guest');
     }
 
@@ -86,6 +111,10 @@ class StorefrontOrderForm extends Component
     {
         $qty = max(1, (int)($this->productQuantities[$productId] ?? 1));
         $this->cart[$productId] = ($this->cart[$productId] ?? 0) + $qty;
+        
+        // Reset default input quantity back to 1 for convenience
+        $this->productQuantities[$productId] = 1;
+        
         session()->flash('message', 'Product added to your order summary.');
     }
 
@@ -110,14 +139,19 @@ class StorefrontOrderForm extends Component
         }
 
         $productIds = array_keys($this->cart);
-        $products = Product::whereIn('id', $productIds)->get();
+        $products = MyProduct::whereIn('id', $productIds)->get();
 
         return $products->map(function($product) {
             $qty = $this->cart[$product->id];
+            
+            // Assuming fallback unit price or fetching if added. Let's look for standard price or use 0 if not defined.
+            // If price column exists on MyProduct, use it. E.g., $product->selling_price
+            $unitPrice = $product->selling_price ?? 0; 
+
             return [
                 'product' => $product,
                 'quantity' => $qty,
-                'subtotal' => $product->selling_price * $qty
+                'subtotal' => $unitPrice * $qty
             ];
         });
     }
@@ -139,7 +173,6 @@ class StorefrontOrderForm extends Component
 
     public function placeOrder()
     {
-        // Anti-spam Honeypot Check: If a bot fills this hidden field, stop immediately
         if (!empty($this->website)) {
             session()->flash('error', 'Spam activity detected.');
             return;
@@ -155,6 +188,15 @@ class StorefrontOrderForm extends Component
         if (empty($this->cart)) {
             return;
         }
+
+        Customer::updateOrCreate(
+            ['phone' => $this->customer_phone],
+            [
+                'name' => $this->customer_name,
+                'email' => $this->customer_email,
+                'address' => $this->shipping_address,
+            ]
+        );
 
         $orderNumber = 'ORD-' . date('Y') . '-' . strtoupper(Str::random(6));
 
@@ -175,25 +217,37 @@ class StorefrontOrderForm extends Component
         ]);
 
         foreach ($this->cart as $productId => $qty) {
-            $product = Product::find($productId);
+            $product = MyProduct::find($productId);
             if ($product) {
+                $unitPrice = $product->selling_price ?? 0;
+
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $product->id,
-                    'product_name' => $product->name,
-                    'sku' => $product->sku,
-                    'unit_price' => $product->selling_price,
+                    'product_name' => $product->product_name,
+                    'sku' => $product->product_code,
+                    'unit_price' => $unitPrice,
                     'quantity' => $qty,
-                    'subtotal' => $product->selling_price * $qty,
+                    'subtotal' => $unitPrice * $qty,
                 ]);
 
-                // Reduce inventory stock automatically
-                $product->decrement('stock_quantity', $qty);
+                // Reduce inventory if stock_quantity column exists
+                if (isset($product->stock_quantity)) {
+                    $product->decrement('stock_quantity', $qty);
+                }
             }
         }
 
         $this->placedOrder = $order;
         $this->cart = [];
-        $this->step = 3; // Confirmation Step
+        $this->step = 3; 
+    }
+
+    public function resetOrder()
+    {
+        $this->step = 1;
+        $this->placedOrder = null;
+        $this->cart = [];
+        $this->initializeQuantities();
     }
 }

@@ -19,6 +19,7 @@ use App\Livewire\LoginAnalyticsDashboard;
 use App\Livewire\MyDocument;
 use App\Livewire\MyDocumentList;
 use App\Livewire\MyPhotos;
+use App\Livewire\MyProducts;
 use App\Livewire\MyReferral;
 use App\Livewire\MySubscription;
 use App\Livewire\MyVideos;
@@ -197,6 +198,10 @@ Route::middleware([
 
 
     Route::get('/resume', ResumeManager::class)->name('resume');
+
+    
+    Route::get('/product', MyProducts::class)->name('product');
+
     // Admin only routes
     Route::middleware(['App\Http\Middleware\AdminAccessMiddleware'])->group(function () {
         // Settings routes

@@ -38,24 +38,39 @@
         }">
             <ul class="space-y-1">
                 <!-- Dashboard Section (single item, no grouping) -->
-                <li class="border-b border-gray-100 dark:border-gray-800 py-1">
-                    <a class="flex items-center py-0.5 px-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-gray-700 dark:text-zinc-400 dark:hover:text-white"
-                        href="{{ route('dashboard') }}">
-                        <!-- Dashboard SVG icon (unchanged) -->
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                            class="size-5 mr-3 relative">
-                            <path stroke-linecap="round" stroke-linejoin="round" class="stroke-blue-500"
-                                d="M3.75 5.25A2.25 2.25 0 016 3h12a2.25 2.25 0 012.25 2.25v13.5A2.25 2.25 0 0118 21H6a2.25 2.25 0 01-2.25-2.25V5.25z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" class="stroke-emerald-500"
-                                d="M7.5 7.5h3v4.5h-3z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" class="stroke-pink-500"
-                                d="M10.5 7.5h6v2.25h-6z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" class="stroke-yellow-500"
-                                d="M7.5 15.75l2.25-2.25 2.25 2.25 3-3 1.5 1.5" />
-                        </svg>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
+                    <li class="border-b border-gray-100 dark:border-gray-800 py-1">
+                        <a class="flex items-center py-0.5 px-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-gray-700 dark:text-zinc-400 dark:hover:text-white"
+                            href="{{ route('dashboard') }}">
+                            <!-- Dashboard SVG icon (unchanged) -->
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                class="size-5 mr-3 relative">
+                                <path stroke-linecap="round" stroke-linejoin="round" class="stroke-blue-500"
+                                    d="M3.75 5.25A2.25 2.25 0 016 3h12a2.25 2.25 0 012.25 2.25v13.5A2.25 2.25 0 0118 21H6a2.25 2.25 0 01-2.25-2.25V5.25z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" class="stroke-emerald-500"
+                                    d="M7.5 7.5h3v4.5h-3z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" class="stroke-pink-500"
+                                    d="M10.5 7.5h6v2.25h-6z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" class="stroke-yellow-500"
+                                    d="M7.5 15.75l2.25-2.25 2.25 2.25 3-3 1.5 1.5" />
+                            </svg>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                            <a class="flex items-center py-0.5 px-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-gray-700 dark:text-zinc-400 dark:hover:text-white"
+                                href="{{ route('product') }}">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                    class="size-5 mr-3 relative">
+                                    <path stroke-linecap="round" stroke-linejoin="round" class="stroke-blue-500"
+                                        d="M6.75 7.5V6c0-.828.672-1.5 1.5-1.5h7.5c.828 0 1.5.672 1.5 1.5v1.5m-10.5 0h10.5m-10.5 0A2.25 2.25 0 004.5 9.75v7.5A2.25 2.25 0 006.75 19.5h10.5a2.25 2.25 0 002.25-2.25v-7.5A2.25 2.25 0 0017.25 7.5" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" class="stroke-emerald-500"
+                                        d="M9.75 11.25v3.75" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" class="stroke-pink-500"
+                                        d="M12.75 11.25v3.75" />
+                                </svg>
+                                <span>Products</span>
+                            </a>
+                        </li>
                          <li>
                             <a class="flex items-center py-0.5 px-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-gray-700 dark:text-zinc-400 dark:hover:text-white"
                                 href="{{ route('customers') }}">
@@ -71,7 +86,7 @@
                                 <span>Customers</span>
                             </a>
                         </li>
-                        li>
+                         <li>
                             <a class="flex items-center py-0.5 px-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-gray-700 dark:text-zinc-400 dark:hover:text-white"
                                 href="{{ route('orders') }}">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
@@ -86,21 +101,7 @@
                                 <span>Orders</span>
                             </a>
                         </li>
-                         <li>
-                            <a class="flex items-center py-0.5 px-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-gray-700 dark:text-zinc-400 dark:hover:text-white"
-                                href="{{ route('my-videos') }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                                    class="size-5 mr-3 relative">
-                                    <path stroke-linecap="round" stroke-linejoin="round" class="stroke-blue-500"
-                                        d="M6.75 7.5V6c0-.828.672-1.5 1.5-1.5h7.5c.828 0 1.5.672 1.5 1.5v1.5m-10.5 0h10.5m-10.5 0A2.25 2.25 0 004.5 9.75v7.5A2.25 2.25 0 006.75 19.5h10.5a2.25 2.25 0 002.25-2.25v-7.5A2.25 2.25 0 0017.25 7.5" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" class="stroke-emerald-500"
-                                        d="M9.75 11.25v3.75" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" class="stroke-pink-500"
-                                        d="M12.75 11.25v3.75" />
-                                </svg>
-                                <span>Videos</span>
-                            </a>
-                        </li>
+                        
                         <!-- <li>
                             <a class="flex items-center py-0.5 px-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-gray-700 dark:text-zinc-400 dark:hover:text-white"
                                 href="{{ route('document-collections') }}">
@@ -190,7 +191,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" class="stroke-purple-500"
                                         d="M4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                                 </svg>
-                                <span>User</span>
+                                <span>Employee</span>
                             </a>
                         </li>
                         <li>

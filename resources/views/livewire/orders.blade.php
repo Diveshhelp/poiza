@@ -1,12 +1,12 @@
 <div class="p-6 max-w-7xl mx-auto">
     <!-- Header & Action Row -->
-    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Order Management</h1>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Track guest storefront orders, update payment statuses, and manage shipments.</p>
-        </div>
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">Order Management</h2>
+        <!-- <button wire:click="create" class="px-2 py-1 text-white hover:dark:text-dark-bg before:[content:''] relative z-[5] before:absolute before:left-0 before:h-full bg-primary dark:bg-secondary before:bg-secondary before:dark:bg-white hover:text-white no-underline transition-all ease-in-out duration-300 hover:before:w-full before:transition-all before:ease-in-out before:duration-300 before:z-[-1] flex justify-center items-center text-xs md:text-sm font-semibold before:w-0 border-0">
+            + Add New Order
+        </button> -->
     </div>
-
+    
     <!-- Flash Message -->
     @if (session()->has('message'))
         <div class="mb-4 p-4 bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-lg shadow-sm">
@@ -99,6 +99,86 @@
         </div>
     </div>
 
+    <!-- Create Order Modal -->
+        @if($isOpen)
+            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                <div class="bg-white rounded-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto shadow-2xl">
+                    <h3 class="text-lg font-bold mb-4 text-gray-800">Create New Order</h3>
+                    
+                    <form wire:submit.prevent="store">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Order Number</label>
+                                <input wire:model="order_number" type="text" readonly class="mt-1 block w-full border border-gray-300 bg-gray-100 rounded-md p-2 text-gray-600 cursor-not-allowed">
+                                @error('order_number') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Customer Name</label>
+                                <input wire:model="customer_name" type="text" class="mt-1 block w-full border border-gray-300 rounded-md p-2">
+                                @error('customer_name') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Customer Phone</label>
+                                <input wire:model="customer_phone" type="text" class="mt-1 block w-full border border-gray-300 rounded-md p-2">
+                                @error('customer_phone') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Customer Email</label>
+                                <input wire:model="customer_email" type="email" class="mt-1 block w-full border border-gray-300 rounded-md p-2">
+                                @error('customer_email') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700">Shipping Address</label>
+                                <textarea wire:model="shipping_address" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md p-2"></textarea>
+                                @error('shipping_address') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
+                        <!-- Order Items Dynamic Section -->
+                        <div class="mt-6">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="text-sm font-bold text-gray-700 uppercase">Order Items</h4>
+                                <button type="button" wire:click="addItemRow" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-medium">+ Add Item</button>
+                            </div>
+                            @error('orderItems') <span class="block text-red-500 text-xs mb-2">{{ $message }}</span> @enderror
+
+                            <div class="space-y-3">
+                                @foreach($orderItems as $index => $item)
+                                    <div class="flex items-center space-x-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                                        <div class="flex-1">
+                                            <select wire:model.live="orderItems.{{ $index }}.my_product_id" class="w-full border border-gray-300 rounded-md p-2 text-sm">
+                                                <option value="">Select Product</option>
+                                                @foreach($productsList as $product)
+                                                    <option value="{{ $product->id }}">{{ $product->product_name }} ({{ $product->product_code }})</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="w-24">
+                                            <input wire:model.live="orderItems.{{ $index }}.quantity" type="number" min="1" placeholder="Qty" class="w-full border border-gray-300 rounded-md p-2 text-sm">
+                                        </div>
+                                        <div class="w-28">
+                                            <input wire:model="orderItems.{{ $index }}.price" type="number" step="0.01" placeholder="Price" class="w-full border border-gray-300 rounded-md p-2 text-sm">
+                                        </div>
+                                        <div>
+                                            <button type="button" wire:click="removeItemRow({{ $index }})" class="text-red-500 hover:text-red-700 p-2 font-bold">&times;</button>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <div class="mt-6 flex justify-end space-x-3">
+                            <button type="button" wire:click="closeModal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md text-sm font-medium">Cancel</button>
+                            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">Save Order</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        @endif
     <!-- View Order Details Modal -->
     @if($isViewModalOpen && $viewingOrder)
         <div class="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
