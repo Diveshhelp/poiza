@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Livewire;
 
 use App\Models\MyProduct;
@@ -8,6 +9,8 @@ use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+
+use App\Models\Category;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MyProducts extends Component
@@ -16,7 +19,7 @@ class MyProducts extends Component
 
     public $search = '';
     public $myProductId;
-    public $product_name, $product_code, $product_alias, $product_category, $finish, $size, $image;
+    public $product_name, $product_code, $product_alias, $category_id, $finish, $size, $image, $piece = 1;
 
     // View Modal Properties
     public $isViewModalOpen = false;
@@ -27,6 +30,11 @@ class MyProducts extends Component
     // CSV Import Property
     public $csvFile;
     public $isCsvModalOpen = false;
+    
+    // Category Modal Properties
+    public $isCategoryModalOpen = false;
+    public $newCategoryName;
+    public $newCategoryDescription;
 
     protected $queryString = ['search' => ['except' => '']];
 
@@ -45,6 +53,7 @@ class MyProducts extends Component
         $this->isImageModalOpen = false;
         $this->previewingImage = null;
     }
+
     public function updatingSearch()
     {
         $this->resetPage();
@@ -56,34 +65,39 @@ class MyProducts extends Component
             'product_name' => 'required|string|max:255',
             'product_code' => 'required|string|max:100|unique:my_products,product_code,' . $this->myProductId,
             'product_alias' => 'nullable|string|max:255',
-            'product_category' => 'nullable|string|max:255',
+            'category_id' => 'nullable|exists:categories,id',
             'finish' => 'nullable|string|max:255',
             'size' => 'nullable|string|max:100',
             'image' => 'nullable|image|max:2048',
+            'piece' => 'required|numeric|min:1',
         ];
     }
 
     public function render()
     {
-        $myProducts = MyProduct::query()
+        $myProducts = MyProduct::with('category')
             ->when($this->search, function ($query) {
                 $query->where('product_name', 'like', '%' . $this->search . '%')
-                      ->orWhere('product_code', 'like', '%' . $this->search . '%')
-                      ->orWhere('product_alias', 'like', '%' . $this->search . '%')
-                      ->orWhere('product_category', 'like', '%' . $this->search . '%')
-                      ->orWhere('uuid', 'like', '%' . $this->search . '%');
+                    ->orWhere('product_code', 'like', '%' . $this->search . '%')
+                    ->orWhere('product_alias', 'like', '%' . $this->search . '%')
+                    ->orWhereHas('category', function ($q) {
+                        $q->where('name', 'like', '%' . $this->search . '%');
+                    })
+                    ->orWhere('uuid', 'like', '%' . $this->search . '%');
             })
             ->latest()
             ->paginate(10);
+        $categories = Category::where('status', 'active')->orderBy('name')->get();
 
         return view('livewire.my-products', [
-            'myProducts' => $myProducts
+            'myProducts' => $myProducts,
+            'categories' => $categories
         ])->layout('layouts.app');
     }
 
     public function view($id)
     {
-        $this->viewingMyProduct = MyProduct::findOrFail($id);
+        $this->viewingMyProduct = MyProduct::with('category')->findOrFail($id);
         $this->isViewModalOpen = true;
     }
 
@@ -113,9 +127,10 @@ class MyProducts extends Component
             'product_name' => $this->product_name,
             'product_code' => $this->product_code,
             'product_alias' => $this->product_alias,
-            'product_category' => $this->product_category,
+            'category_id' => $this->category_id ?: null,
             'finish' => $this->finish,
             'size' => $this->size,
+            'piece' => $this->piece,
             'image' => $imagePath,
         ];
 
@@ -142,9 +157,10 @@ class MyProducts extends Component
         $this->product_name = $product->product_name;
         $this->product_code = $product->product_code;
         $this->product_alias = $product->product_alias;
-        $this->product_category = $product->product_category;
+        $this->category_id = $product->category_id;
         $this->finish = $product->finish;
         $this->size = $product->size;
+        $this->piece = $product->piece ?? 1;
         $this->image = $product->image;
 
         $this->isEditMode = true;
@@ -186,11 +202,11 @@ class MyProducts extends Component
             $file = fopen('php://output', 'w');
             
             fputcsv($file, [
-                'product_name', 'product_code', 'product_alias', 'product_category', 'finish', 'size', 'image'
+                'product_name', 'product_code', 'product_alias', 'product_category', 'finish', 'size', 'piece', 'image'
             ]);
 
             fputcsv($file, [
-                'Glossy Ceramic Tile', 'TILE-GLS-001', 'Glossy Tile', 'Tiles', 'Glossy', '600x600mm', 'my-products/sample.jpg'
+                'Glossy Mortise Handle', 'PH0001', 'Mortise Lock Handle', 'Mortise Handles', 'Glossy', '200mm', '1', 'my-products/sample.jpg'
             ]);
 
             fclose($file);
@@ -213,14 +229,30 @@ class MyProducts extends Component
 
         while (($row = fgetcsv($file)) !== false) {
             if (count($row) >= 1) {
+                $categoryName = $row[3] ?? null;
+                $categoryId = null;
+
+                if (!empty($categoryName)) {
+                    $category = Category::firstOrCreate(
+                        ['name' => trim($categoryName)],
+                        [
+                            'uuid' => (string) Str::uuid(),
+                            'slug' => Str::slug($categoryName),
+                            'status' => 'active'
+                        ]
+                    );
+                    $categoryId = $category->id;
+                }
+
                 $data = [
                     'product_name' => $row[0] ?? '',
                     'product_code' => $row[1] ?? '',
                     'product_alias' => $row[2] ?? null,
-                    'product_category' => $row[3] ?? null,
+                    'category_id' => $categoryId,
                     'finish' => $row[4] ?? null,
                     'size' => $row[5] ?? null,
-                    'image' => $row[6] ?? null,
+                    'piece' => is_numeric($row[6] ?? null) ? $row[6] : 1,
+                    'image' => $row[7] ?? null,
                 ];
 
                 $validator = Validator::make($data, [
@@ -253,10 +285,8 @@ class MyProducts extends Component
 
     public function mount()
     {
-        // Auto-fill product code when the page loads
         $this->product_code = $this->generateProductCode();
     }
-
 
     private function generateProductCode()
     {
@@ -269,9 +299,9 @@ class MyProducts extends Component
         
         return 'PH0001';
     }
+
     public function removeImage()
     {
-        // If editing an existing record and it has a stored image file
         if ($this->myProductId) {
             $product = MyProduct::find($this->myProductId);
             if ($product && $product->image) {
@@ -282,20 +312,57 @@ class MyProducts extends Component
             }
         }
 
-        // Reset the current live wire image property
         $this->image = null;
         session()->flash('message', 'Product image removed successfully.');
+    }
+
+    // Quick Add Category Actions
+    public function openCategoryModal()
+    {
+        $this->newCategoryName = '';
+        $this->newCategoryDescription = '';
+        $this->isCategoryModalOpen = true;
+    }
+
+    public function closeCategoryModal()
+    {
+        $this->isCategoryModalOpen = false;
+        $this->newCategoryName = '';
+        $this->newCategoryDescription = '';
+    }
+
+    public function storeCategory()
+    {
+        $this->validate([
+            'newCategoryName' => 'required|string|max:255|unique:categories,name',
+            'newCategoryDescription' => 'nullable|string',
+        ]);
+
+        $category = Category::create([
+            'uuid' => (string) Str::uuid(),
+            'name' => trim($this->newCategoryName),
+            'slug' => Str::slug($this->newCategoryName),
+            'description' => $this->newCategoryDescription,
+            'status' => 'active',
+        ]);
+
+        // Automatically assign and focus the newly created category in the product form dropdown
+        $this->category_id = $category->id;
+
+        session()->flash('message', 'New category created successfully.');
+        $this->closeCategoryModal();
     }
 
     private function resetInputFields()
     {
         $this->myProductId = null;
         $this->product_name = '';
-        $this->product_code = $this->generateProductCode(); // Keep it auto-filled on reset
+        $this->product_code = $this->generateProductCode();
         $this->product_alias = '';
-        $this->product_category = '';
+        $this->category_id = '';
         $this->finish = '';
         $this->size = '';
+        $this->piece = 1;
         $this->image = null;
     }
 }

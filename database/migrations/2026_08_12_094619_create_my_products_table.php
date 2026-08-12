@@ -17,10 +17,11 @@ return new class extends Migration
             $table->string('product_name');
             $table->string('product_code')->unique();
             $table->string('product_alias')->nullable();
-            $table->string('product_category')->nullable();
+            $table->string('category_id')->nullable();
             $table->string('finish')->nullable();
             $table->string('size')->nullable();
             $table->string('image')->nullable();
+            $table->string('piece')->nullable();
             $table->timestamps();
         });
     }

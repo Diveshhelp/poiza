@@ -18,7 +18,7 @@ class StorefrontOrderForm extends Component
     public $isAuthorized = false;
     public $auth_phone = '';
 
-    public $step = 1; 
+    public $step = 1; // 1: Select Items, 2: Customer Details, 3: Order Confirmation
     
     // Search and Catalog filters
     public $search = '';
@@ -84,9 +84,8 @@ class StorefrontOrderForm extends Component
 
     public function render()
     {
-        // Only fetch products if the user has typed a search or picked a category
         if (empty(trim($this->search)) && empty($this->selectedCategory)) {
-            $products = collect(); // Returns an empty collection
+            $products = collect(); 
         } else {
             $query = MyProduct::query();
 
@@ -121,7 +120,7 @@ class StorefrontOrderForm extends Component
         
         $this->productQuantities[$productId] = 1;
         
-        session()->flash('message', 'Product added to your order summary.');
+        session()->flash('message', 'Product added to your selection summary.');
     }
 
     public function removeFromCart($productId)
@@ -149,29 +148,12 @@ class StorefrontOrderForm extends Component
 
         return $products->map(function($product) {
             $qty = $this->cart[$product->id];
-            $unitPrice = $product->selling_price ?? 0; 
 
             return [
                 'product' => $product,
                 'quantity' => $qty,
-                'subtotal' => $unitPrice * $qty
             ];
         });
-    }
-
-    public function getSubtotalProperty()
-    {
-        return $this->cartItems->sum('subtotal');
-    }
-
-    public function getTaxAmountProperty()
-    {
-        return $this->subtotal * 0.18; 
-    }
-
-    public function getTotalAmountProperty()
-    {
-        return $this->subtotal + $this->taxAmount;
     }
 
     public function placeOrder()
@@ -210,9 +192,9 @@ class StorefrontOrderForm extends Component
             'customer_email' => $this->customer_email,
             'customer_phone' => $this->customer_phone,
             'shipping_address' => $this->shipping_address,
-            'subtotal' => $this->subtotal,
-            'tax_amount' => $this->taxAmount,
-            'total_amount' => $this->totalAmount,
+            'subtotal' => 0,
+            'tax_amount' => 0,
+            'total_amount' => 0,
             'status' => 'pending',
             'payment_status' => 'unpaid',
             'payment_method' => $this->payment_method,
@@ -222,16 +204,14 @@ class StorefrontOrderForm extends Component
         foreach ($this->cart as $productId => $qty) {
             $product = MyProduct::find($productId);
             if ($product) {
-                $unitPrice = $product->selling_price ?? 0;
-
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $product->id,
                     'product_name' => $product->product_name,
                     'sku' => $product->product_code,
-                    'unit_price' => $unitPrice,
+                    'unit_price' => 0,
                     'quantity' => $qty,
-                    'subtotal' => $unitPrice * $qty,
+                    'subtotal' => 0,
                 ]);
 
                 if (isset($product->stock_quantity)) {

@@ -29,17 +29,22 @@ class Orders extends Component
     public $orderItems = [];
     public $productsList = [];
 
-    protected $queryString = ['search' => ['except' => ''], 'statusFilter' => ['except' => '']];
 
     public function mount()
     {
         $this->productsList = MyProduct::all();
     }
+// Update $queryString to include your new filters so state is preserved on pagination/refresh:
+protected $queryString = [
+    'search' => ['except' => ''], 
+    'statusFilter' => ['except' => ''],
+    'dateFrom' => ['except' => ''],
+    'dateTo' => ['except' => ''],
+    'customerFilter' => ['except' => ''],
+    'paymentStatusFilter' => ['except' => ''],
+];
 
-    public function updatingSearch()
-    {
-        $this->resetPage();
-    }
+ 
 
     protected function rules()
     {
@@ -57,24 +62,63 @@ class Orders extends Component
             'orderItems.*.price' => 'required|numeric|min:0',
         ];
     }
+    // Add these public properties to your class:
+public $dateFrom = '';
+public $dateTo = '';
+public $customerFilter = '';
+public $paymentStatusFilter = '';
 
+
+
+    // Update updating methods so pagination resets when any filter changes:
+    public function updatingSearch() { $this->resetPage(); }
+    public function updatingStatusFilter() { $this->resetPage(); }
+    public function updatingDateFrom() { $this->resetPage(); }
+    public function updatingDateTo() { $this->resetPage(); }
+    public function updatingCustomerFilter() { $this->resetPage(); }
+    public function updatingPaymentStatusFilter() { $this->resetPage(); }
+
+    // Update your render method to include the new filters:
     public function render()
     {
         $orders = Order::with('items')
             ->when($this->search, function ($query) {
                 $query->where('order_number', 'like', '%' . $this->search . '%')
-                      ->orWhere('customer_name', 'like', '%' . $this->search . '%')
-                      ->orWhere('customer_phone', 'like', '%' . $this->search . '%');
+                    ->orWhere('customer_name', 'like', '%' . $this->search . '%')
+                    ->orWhere('customer_phone', 'like', '%' . $this->search . '%');
             })
             ->when($this->statusFilter, function ($query) {
                 $query->where('status', $this->statusFilter);
             })
+            ->when($this->paymentStatusFilter, function ($query) {
+                $query->where('payment_status', $this->paymentStatusFilter);
+            })
+            ->when($this->customerFilter, function ($query) {
+                $query->where('customer_name', 'like', '%' . $this->customerFilter . '%');
+            })
+            ->when($this->dateFrom, function ($query) {
+                $query->whereDate('created_at', '>=', $this->dateFrom);
+            })
+            ->when($this->dateTo, function ($query) {
+                $query->whereDate('created_at', '<=', $this->dateTo);
+            })
             ->latest()
             ->paginate(10);
 
+        // Optional: Get a unique list of customers for a dropdown filter if preferred
+        $customersList = Order::select('customer_name')->distinct()->pluck('customer_name');
+
         return view('livewire.orders', [
-            'orders' => $orders
+            'orders' => $orders,
+            'customersList' => $customersList
         ])->layout('layouts.app');
+    }
+
+    // Add a reset filters helper:
+    public function resetFilters()
+    {
+        $this->reset(['search', 'statusFilter', 'dateFrom', 'dateTo', 'customerFilter', 'paymentStatusFilter']);
+        $this->resetPage();
     }
 
     public function view($id)
