@@ -55,7 +55,7 @@ class StorefrontOrderForm extends Component
             $this->loadExistingCustomerData($this->customer_phone);
         }
     }
-public function verifyMobile()
+    public function verifyMobile()
     {
         $this->validate([
             'auth_phone' => 'required|string|exists:customers,phone',

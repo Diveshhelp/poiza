@@ -94,8 +94,8 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700 text-sm text-gray-700 dark:text-gray-200">
                     @forelse ($orders as $order)
-                        <tr wire:key="order-row-{{ $order->id }}" class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
-                            <td class="px-6 py-4">
+                        <tr wire:key="order-row-{{ $order->id }}" class=" cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 transition" >
+                            <td class="px-6 py-4" wire:click="view({{ $order->id }})" title="View Order Details & Audit History">
                                 <div class="font-bold font-mono text-indigo-600 dark:text-indigo-400">{{ $order->order_number }}</div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">{{ $order->created_at->format('d M Y, h:i A') }}</div>
                             </td>
@@ -114,15 +114,29 @@
                                 </div>
                                 <span class="text-[11px] text-gray-400 block mt-1 uppercase">{{ str_replace('_', ' ', $order->payment_method ?? 'cod') }}</span>
                             </td>
-                            <td class="px-6 py-4">
-                                <select wire:change="updateOrderStatus({{ $order->id }}, $event.target.value)" class="text-xs font-semibold px-2 py-1 rounded-lg border dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none">
-                                    <option value="pending" {{ $order->status === 'pending' ? 'selected' : '' }}>Pending</option>
-                                    <option value="confirmed" {{ $order->status === 'confirmed' ? 'selected' : '' }}>Confirmed</option>
-                                    <option value="processing" {{ $order->status === 'processing' ? 'selected' : '' }}>Processing</option>
-                                    <option value="shipped" {{ $order->status === 'shipped' ? 'selected' : '' }}>Shipped</option>
-                                    <option value="completed" {{ $order->status === 'completed' ? 'selected' : '' }}>Completed</option>
-                                    <option value="cancelled" {{ $order->status === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                                </select>
+                           <td class="px-6 py-4">
+                                <div class="flex flex-col items-start gap-1">
+                                    <!-- Status Badge / Selector wrapper -->
+                                    <select wire:change="updateOrderStatus({{ $order->id }}, $event.target.value)" 
+                                            class="text-xs font-semibold px-2.5 py-1 rounded-lg border focus:outline-none transition 
+                                            {{ 
+                                                match($order->status) {
+                                                    'completed' => 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
+                                                    'processing' => 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
+                                                    'shipped' => 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800',
+                                                    'confirmed' => 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800',
+                                                    'cancelled' => 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
+                                                    default => 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
+                                                }
+                                            }}">
+                                        <option value="pending" {{ $order->status === 'pending' ? 'selected' : '' }}>Pending</option>
+                                        <option value="confirmed" {{ $order->status === 'confirmed' ? 'selected' : '' }}>Confirmed</option>
+                                        <option value="processing" {{ $order->status === 'processing' ? 'selected' : '' }}>Processing</option>
+                                        <option value="shipped" {{ $order->status === 'shipped' ? 'selected' : '' }}>Shipped</option>
+                                        <option value="completed" {{ $order->status === 'completed' ? 'selected' : '' }}>Completed</option>
+                                        <option value="cancelled" {{ $order->status === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                                    </select>
+                                </div>
                             </td>
                       
                             <td class="px-6 py-4 text-right whitespace-nowrap">
