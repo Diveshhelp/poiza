@@ -19,7 +19,10 @@ class MyProducts extends Component
 
     public $search = '';
     public $myProductId;
+    
+    // Product Fields mapped to spreadsheet headers
     public $product_name, $product_code, $product_alias, $category_id, $finish, $size, $image, $piece = 1;
+    public $price, $packing, $type_of_model, $material, $category_name, $model_key;
 
     // View Modal Properties
     public $isViewModalOpen = false;
@@ -68,6 +71,12 @@ class MyProducts extends Component
             'category_id' => 'nullable|exists:categories,id',
             'finish' => 'nullable|string|max:255',
             'size' => 'nullable|string|max:100',
+            'price' => 'nullable|numeric|min:0',
+            'packing' => 'nullable|string|max:255',
+            'type_of_model' => 'nullable|string|max:255',
+            'material' => 'nullable|string|max:255',
+            'category_name' => 'nullable|string|max:255',
+            'model_key' => 'nullable|string|max:255|unique:my_products,model_key,' . $this->myProductId,
             'image' => 'nullable|image|max:2048',
             'piece' => 'required|numeric|min:1',
         ];
@@ -80,6 +89,9 @@ class MyProducts extends Component
                 $query->where('product_name', 'like', '%' . $this->search . '%')
                     ->orWhere('product_code', 'like', '%' . $this->search . '%')
                     ->orWhere('product_alias', 'like', '%' . $this->search . '%')
+                    ->orWhere('model_key', 'like', '%' . $this->search . '%')
+                    ->orWhere('material', 'like', '%' . $this->search . '%')
+                    ->orWhere('type_of_model', 'like', '%' . $this->search . '%')
                     ->orWhereHas('category', function ($q) {
                         $q->where('name', 'like', '%' . $this->search . '%');
                     })
@@ -87,6 +99,7 @@ class MyProducts extends Component
             })
             ->latest()
             ->paginate(10);
+            
         $categories = Category::where('status', 'active')->orderBy('name')->get();
 
         return view('livewire.my-products', [
@@ -130,6 +143,12 @@ class MyProducts extends Component
             'category_id' => $this->category_id ?: null,
             'finish' => $this->finish,
             'size' => $this->size,
+            'price' => $this->price ?? 0,
+            'packing' => $this->packing,
+            'type_of_model' => $this->type_of_model,
+            'material' => $this->material,
+            'category_name' => $this->category_name,
+            'model_key' => $this->model_key,
             'piece' => $this->piece,
             'image' => $imagePath,
         ];
@@ -160,6 +179,12 @@ class MyProducts extends Component
         $this->category_id = $product->category_id;
         $this->finish = $product->finish;
         $this->size = $product->size;
+        $this->price = $product->price;
+        $this->packing = $product->packing;
+        $this->type_of_model = $product->type_of_model;
+        $this->material = $product->material;
+        $this->category_name = $product->category_name;
+        $this->model_key = $product->model_key;
         $this->piece = $product->piece ?? 1;
         $this->image = $product->image;
 
@@ -191,7 +216,7 @@ class MyProducts extends Component
         $this->csvFile = null;
     }
 
-    public function exportSampleCsv(): StreamedResponse
+   public function exportSampleCsv(): StreamedResponse
     {
         $headers = [
             'Content-Type' => 'text/csv',
@@ -201,12 +226,37 @@ class MyProducts extends Component
         $callback = function() {
             $file = fopen('php://output', 'w');
             
+            // CSV Header Row in camelCase with bold text styling if opened in markdown/spreadsheet headers
             fputcsv($file, [
-                'product_name', 'product_code', 'product_alias', 'product_category', 'finish', 'size', 'piece', 'image'
+                'Product Name', 
+                'Product Code', 
+                'Size', 
+                'Finish', 
+                'Price', 
+                'Packing', 
+                'Type Of Model', 
+                'Material', 
+                'Product Category', 
+                'Model Key', 
+                'Product Alias', 
+                'Piece'
+                
             ]);
 
+            // Sample Data Row matching the updated camelCase columns
             fputcsv($file, [
-                'Glossy Mortise Handle', 'PH0001', 'Mortise Lock Handle', 'Mortise Handles', 'Glossy', '200mm', '1', 'my-products/sample.jpg'
+                'Glossy Mortise Handle', 
+                'PH0001', 
+                '200mm', 
+                'Glossy', 
+                '450.00', 
+                'Box', 
+                'Mortise Handle', 
+                'Steel', 
+                'Mortise Handles', 
+                'PH0001-200-GL', 
+                'Mortise Lock Handle', 
+                '1'
             ]);
 
             fclose($file);
@@ -228,8 +278,8 @@ class MyProducts extends Component
         $rowCount = 0;
 
         while (($row = fgetcsv($file)) !== false) {
-            if (count($row) >= 1) {
-                $categoryName = $row[3] ?? null;
+            if (count($row) >= 2) {
+                $categoryName = $row[8] ?? null; // Spreadsheet Category column index
                 $categoryId = null;
 
                 if (!empty($categoryName)) {
@@ -247,12 +297,18 @@ class MyProducts extends Component
                 $data = [
                     'product_name' => $row[0] ?? '',
                     'product_code' => $row[1] ?? '',
-                    'product_alias' => $row[2] ?? null,
+                    'size' => $row[2] ?? null,
+                    'finish' => $row[3] ?? null,
+                    'price' => is_numeric($row[4] ?? null) ? $row[4] : 1,
+                    'packing' => $row[5] ?? null,
+                    'type_of_model' => $row[6] ?? null,
+                    'material' => $row[7] ?? null,
+                    'category_name' => $categoryName,
                     'category_id' => $categoryId,
-                    'finish' => $row[4] ?? null,
-                    'size' => $row[5] ?? null,
-                    'piece' => is_numeric($row[6] ?? null) ? $row[6] : 1,
-                    'image' => $row[7] ?? null,
+                    'model_key' => $row[9] ?? null,
+                    'product_alias' => $row[10] ?? null,
+                    'piece' => is_numeric($row[11] ?? null) ? $row[11] : 1,
+                    'image' => null,
                 ];
 
                 $validator = Validator::make($data, [
@@ -346,8 +402,8 @@ class MyProducts extends Component
             'status' => 'active',
         ]);
 
-        // Automatically assign and focus the newly created category in the product form dropdown
         $this->category_id = $category->id;
+        $this->category_name = $category->name;
 
         session()->flash('message', 'New category created successfully.');
         $this->closeCategoryModal();
@@ -362,6 +418,12 @@ class MyProducts extends Component
         $this->category_id = '';
         $this->finish = '';
         $this->size = '';
+        $this->price = '';
+        $this->packing = '';
+        $this->type_of_model = '';
+        $this->material = '';
+        $this->category_name = '';
+        $this->model_key = '';
         $this->piece = 1;
         $this->image = null;
     }

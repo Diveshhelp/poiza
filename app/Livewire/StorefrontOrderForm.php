@@ -24,9 +24,10 @@ class StorefrontOrderForm extends Component
     public $search = '';
     public $selectedCategory = '';
 
-    // Cart storage: [my_product_id => quantity]
+    // Cart storage: [my_product_id => ['qty' => quantity, 'type' => unit_type]]
     public $cart = [];
     public $productQuantities = [];
+    public $productUnitTypes = []; // Tracks 'box' or 'piece' per product
 
     // Customer & Checkout Details
     public $customer_name, $customer_email, $customer_phone, $shipping_address, $payment_method = 'cod', $notes;
@@ -94,18 +95,20 @@ class StorefrontOrderForm extends Component
                     $q->where('product_name', 'like', '%' . $this->search . '%')
                       ->orWhere('product_code', 'like', '%' . $this->search . '%')
                       ->orWhere('product_alias', 'like', '%' . $this->search . '%')
-                      ->orWhere('finish', 'like', '%' . $this->search . '%');
+                      ->orWhere('finish', 'like', '%' . $this->search . '%')
+                      ->orWhere('material', 'like', '%' . $this->search . '%')
+                      ->orWhere('model_key', 'like', '%' . $this->search . '%');
                 });
             }
 
             if (!empty($this->selectedCategory)) {
-                $query->where('product_category', $this->selectedCategory);
+                $query->where('category_id', $this->selectedCategory);
             }
 
             $products = $query->paginate(20);
         }
 
-        $categories = MyProduct::whereNotNull('product_category')->distinct()->pluck('product_category');
+        $categories = \App\Models\Category::where('status', 'active')->orderBy('name')->get();
 
         return view('livewire.storefront-order-form', [
             'products' => $products,
@@ -116,16 +119,30 @@ class StorefrontOrderForm extends Component
     public function addToCart($productId)
     {
         $qty = max(1, (int)($this->productQuantities[$productId] ?? 1));
-        $this->cart[$productId] = ($this->cart[$productId] ?? 0) + $qty;
+        $unitType = $this->productUnitTypes[$productId] ?? 'piece'; // Default to piece
+
+        // Store unique item or aggregate based on product + type combination
+        $cartKey = $productId . '_' . $unitType;
+
+        if (isset($this->cart[$cartKey])) {
+            $this->cart[$cartKey]['qty'] += $qty;
+        } else {
+            $this->cart[$cartKey] = [
+                'product_id' => $productId,
+                'qty' => $qty,
+                'type' => $unitType,
+            ];
+        }
         
         $this->productQuantities[$productId] = 1;
+        $this->productUnitTypes[$productId] = 'piece';
         
         session()->flash('message', 'Product added to your selection summary.');
     }
 
-    public function removeFromCart($productId)
+    public function removeFromCart($cartKey)
     {
-        unset($this->cart[$productId]);
+        unset($this->cart[$cartKey]);
     }
 
     public function proceedToCheckout()
@@ -143,17 +160,31 @@ class StorefrontOrderForm extends Component
             return collect();
         }
 
-        $productIds = array_keys($this->cart);
-        $products = MyProduct::whereIn('id', $productIds)->get();
+        return collect($this->cart)->map(function($item, $cartKey) {
+            $product = MyProduct::find($item['product_id']);
+            if (!$product) return null;
 
-        return $products->map(function($product) {
-            $qty = $this->cart[$product->id];
+            $qty = $item['qty'];
+            $unitType = $item['type'];
+            $unitPrice = $product->price ?? 0;
+
+            // If ordered by box, you can multiply by items-per-box if applicable, otherwise keep unit price base
+            $subtotal = $unitPrice * $qty;
 
             return [
+                'cart_key' => $cartKey,
                 'product' => $product,
                 'quantity' => $qty,
+                'unit_type' => $unitType,
+                'unit_price' => $unitPrice,
+                'subtotal' => $subtotal,
             ];
-        });
+        })->filter();
+    }
+
+    public function getCartSubtotalProperty()
+    {
+        return $this->cartItems->sum('subtotal');
     }
 
     public function placeOrder()
@@ -183,7 +214,11 @@ class StorefrontOrderForm extends Component
             ]
         );
 
-        $orderNumber = 'ORD-' . date('Y') . '-' . strtoupper(Str::random(6));
+        $subtotal = $this->cartSubtotal;
+        $taxAmount = 0;
+        $totalAmount = $subtotal + $taxAmount;
+
+        $orderNumber = 'AM-' . date('Y') . '-' . strtoupper(Str::random(6));
 
         $order = Order::create([
             'uuid' => (string) Str::uuid(),
@@ -192,32 +227,28 @@ class StorefrontOrderForm extends Component
             'customer_email' => $this->customer_email,
             'customer_phone' => $this->customer_phone,
             'shipping_address' => $this->shipping_address,
-            'subtotal' => 0,
-            'tax_amount' => 0,
-            'total_amount' => 0,
+            'subtotal' => $subtotal,
+            'tax_amount' => $taxAmount,
+            'total_amount' => $totalAmount,
             'status' => 'pending',
             'payment_status' => 'unpaid',
             'payment_method' => $this->payment_method,
             'notes' => $this->notes,
         ]);
 
-        foreach ($this->cart as $productId => $qty) {
-            $product = MyProduct::find($productId);
-            if ($product) {
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $product->id,
-                    'product_name' => $product->product_name,
-                    'sku' => $product->product_code,
-                    'unit_price' => 0,
-                    'quantity' => $qty,
-                    'subtotal' => 0,
-                ]);
-
-                if (isset($product->stock_quantity)) {
-                    $product->decrement('stock_quantity', $qty);
-                }
-            }
+        foreach ($this->cartItems as $item) {
+            $product = $item['product'];
+            $unitLabel = ucfirst($item['unit_type']); // 'Box' or 'Piece'
+            
+            OrderItem::create([
+                'order_id' => $order->id,
+                'product_id' => $product->id,
+                'product_name' => $product->product_name . ' (' . $item['quantity'] . ' ' . $unitLabel . 's)',
+                'sku' => $product->product_code,
+                'unit_price' => $item['unit_price'],
+                'quantity' => $item['quantity'],
+                'subtotal' => $item['subtotal'],
+            ]);
         }
 
         $this->placedOrder = $order;

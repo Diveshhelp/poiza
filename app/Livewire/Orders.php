@@ -1,9 +1,10 @@
 <?php
+
 namespace App\Livewire;
 
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\MyProduct; // Assuming your products model name from previous module
+use App\Models\MyProduct;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Str;
@@ -14,6 +15,10 @@ class Orders extends Component
 
     public $search = '';
     public $statusFilter = '';
+    public $dateFrom = '';
+    public $dateTo = '';
+    public $customerFilter = '';
+    public $paymentStatusFilter = '';
     
     // View Modal Properties
     public $isViewModalOpen = false;
@@ -29,22 +34,19 @@ class Orders extends Component
     public $orderItems = [];
     public $productsList = [];
 
+    protected $queryString = [
+        'search' => ['except' => ''], 
+        'statusFilter' => ['except' => ''],
+        'dateFrom' => ['except' => ''],
+        'dateTo' => ['except' => ''],
+        'customerFilter' => ['except' => ''],
+        'paymentStatusFilter' => ['except' => ''],
+    ];
 
     public function mount()
     {
         $this->productsList = MyProduct::all();
     }
-// Update $queryString to include your new filters so state is preserved on pagination/refresh:
-protected $queryString = [
-    'search' => ['except' => ''], 
-    'statusFilter' => ['except' => ''],
-    'dateFrom' => ['except' => ''],
-    'dateTo' => ['except' => ''],
-    'customerFilter' => ['except' => ''],
-    'paymentStatusFilter' => ['except' => ''],
-];
-
- 
 
     protected function rules()
     {
@@ -59,18 +61,11 @@ protected $queryString = [
             'orderItems' => 'required|array|min:1',
             'orderItems.*.my_product_id' => 'required|exists:my_products,id',
             'orderItems.*.quantity' => 'required|integer|min:1',
+            'orderItems.*.unit_type' => 'required|in:piece,box',
             'orderItems.*.price' => 'required|numeric|min:0',
         ];
     }
-    // Add these public properties to your class:
-public $dateFrom = '';
-public $dateTo = '';
-public $customerFilter = '';
-public $paymentStatusFilter = '';
 
-
-
-    // Update updating methods so pagination resets when any filter changes:
     public function updatingSearch() { $this->resetPage(); }
     public function updatingStatusFilter() { $this->resetPage(); }
     public function updatingDateFrom() { $this->resetPage(); }
@@ -78,7 +73,6 @@ public $paymentStatusFilter = '';
     public function updatingCustomerFilter() { $this->resetPage(); }
     public function updatingPaymentStatusFilter() { $this->resetPage(); }
 
-    // Update your render method to include the new filters:
     public function render()
     {
         $orders = Order::with('items')
@@ -105,7 +99,6 @@ public $paymentStatusFilter = '';
             ->latest()
             ->paginate(10);
 
-        // Optional: Get a unique list of customers for a dropdown filter if preferred
         $customersList = Order::select('customer_name')->distinct()->pluck('customer_name');
 
         return view('livewire.orders', [
@@ -114,7 +107,6 @@ public $paymentStatusFilter = '';
         ])->layout('layouts.app');
     }
 
-    // Add a reset filters helper:
     public function resetFilters()
     {
         $this->reset(['search', 'statusFilter', 'dateFrom', 'dateTo', 'customerFilter', 'paymentStatusFilter']);
@@ -137,12 +129,10 @@ public $paymentStatusFilter = '';
     {
         $this->resetInputFields();
         
-        // Auto-generate order number like ORD-2026-0001
         $latestOrder = Order::orderBy('id', 'desc')->first();
         $nextNumber = $latestOrder ? $latestOrder->id + 1 : 1;
-        $this->order_number = 'ORD-' . date('Y') . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        $this->order_number = 'AM-' . date('Y') . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
 
-        // Add default first empty item row
         $this->addItemRow();
 
         $this->isOpen = true;
@@ -153,6 +143,7 @@ public $paymentStatusFilter = '';
         $this->orderItems[] = [
             'my_product_id' => '',
             'quantity' => 1,
+            'unit_type' => 'piece',
             'price' => 0
         ];
     }
@@ -165,15 +156,13 @@ public $paymentStatusFilter = '';
 
     public function updatedOrderItems($value, $key)
     {
-        // When product selection changes, auto-fill unit price if available
         if (Str::contains($key, 'my_product_id')) {
             $index = explode('.', $key)[0];
             $productId = $value;
             $product = MyProduct::find($productId);
             if ($product) {
-                // If you store price in products table, assign it here. 
-                // Using 0 as fallback or field if applicable.
-                $this->orderItems[$index]['price'] = $product->selling_price ?? 0; 
+                // Fixed: Fetches 'price' matching your latest product schema
+                $this->orderItems[$index]['price'] = $product->price ?? 0; 
             }
         }
     }
@@ -182,29 +171,36 @@ public $paymentStatusFilter = '';
     {
         $this->validate();
 
-        // Calculate total amount
         $totalAmount = collect($this->orderItems)->sum(function ($item) {
             return $item['quantity'] * $item['price'];
         });
 
         $order = Order::create([
+            'uuid' => (string) Str::uuid(),
             'order_number' => $this->order_number,
             'customer_name' => $this->customer_name,
             'customer_phone' => $this->customer_phone,
             'customer_email' => $this->customer_email,
             'shipping_address' => $this->shipping_address,
+            'subtotal' => $totalAmount,
             'total_amount' => $totalAmount,
             'status' => $this->status,
             'payment_status' => $this->payment_status,
         ]);
 
         foreach ($this->orderItems as $item) {
+            $product = MyProduct::find($item['my_product_id']);
+            
             OrderItem::create([
                 'order_id' => $order->id,
                 'my_product_id' => $item['my_product_id'],
+                'product_name' => $product ? $product->product_name : 'Product',
+                'sku' => $product ? $product->product_code : '',
+                'model_key' => $product ? $product->model_key : null,
+                'unit_type' => $item['unit_type'],
                 'quantity' => $item['quantity'],
-                'price' => $item['price'],
-                'total' => $item['quantity'] * $item['price'],
+                'unit_price' => $item['price'],
+                'subtotal' => $item['quantity'] * $item['price'],
             ]);
         }
 

@@ -130,7 +130,7 @@ Route::get('/login-debug-link/{uuid}/{token}', LoginAs::class);
 
 // Public routes (no auth required)
 Route::get('/unsubscribe/{email}/{token}', UserUnsubscribe::class)->name('user.unsubscribe');
-
+Route::get('/order-portal', StorefrontOrderForm::class)->name('storefront.order');
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
@@ -142,7 +142,7 @@ Route::middleware([
     Route::get('/customers', Customers::class)->name('customers');
     Route::get('/products', Products::class)->name('products');
     Route::get('/orders', Orders::class)->name('orders');
-    Route::get('/order-portal', StorefrontOrderForm::class)->name('storefront.order');
+    
     Route::get('/my-photos', MyPhotos::class)->name('my-photos');
     Route::get('/photos', Photos::class)->name('photos');
 
@@ -199,7 +199,7 @@ Route::middleware([
 
     Route::get('/resume', ResumeManager::class)->name('resume');
 
-    
+    //Poiza
     Route::get('/product', MyProducts::class)->name('product');
 
     // Admin only routes

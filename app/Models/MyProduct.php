@@ -16,12 +16,19 @@ class MyProduct extends Model
         'product_code',
         'product_alias',
         'category_id',
+        'category_name',
         'finish',
         'size',
+        'price',
+        'packing',
+        'type_of_model',
+        'material',
+        'model_key',
+        'piece',
         'image',
-        'piece'
     ];
 
+    
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);

@@ -17,14 +17,14 @@
 
     <!-- Flash Message -->
     @if (session()->has('message'))
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4 shadow-sm" role="alert">
             <span class="block sm:inline">{{ session('message') }}</span>
         </div>
     @endif
 
     <!-- Search Bar -->
     <div class="mb-4">
-        <input wire:model.live.debounce.300ms="search" type="text" placeholder="Search by name, code, alias, category..." class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none dark:bg-gray-800 dark:text-white text-sm">
+        <input wire:model.live.debounce.300ms="search" type="text" placeholder="Search by name, code, alias, category, material..." class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none dark:bg-gray-800 dark:text-white text-sm">
     </div>
 
     <!-- Data Table -->
@@ -34,15 +34,15 @@
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Image</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Product Name / Alias</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Code / Category</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Finish / Size</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Piece</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Code / Key</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Details</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Price</th>
                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                 @forelse ($myProducts as $product)
-                    <tr>
+                    <tr wire:key="product-row-{{ $product->id }}">
                         <td class="px-6 py-4 whitespace-nowrap">
                             @if($product->image)
                                 <img src="{{ Storage::url($product->image) }}" alt="Product Image" wire:click="openImageModal('{{ Storage::url($product->image) }}')" class="h-10 w-10 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity shadow-sm">
@@ -56,14 +56,14 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                             <span class="block font-mono text-xs font-bold text-gray-700 dark:text-gray-200">{{ $product->product_code }}</span>
-                            <span class="text-xs text-indigo-600 dark:text-indigo-400">{{ $product->category->name ?? 'Uncategorized' }}</span>
+                            <span class="text-xs text-indigo-600 dark:text-indigo-400">{{ $product->model_key }}</span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                            <div>{{ $product->finish ?? '-' }}</div>
-                            <div class="text-xs text-gray-400">{{ $product->size ?? '-' }}</div>
+                        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">
+                            <div>{{ $product->finish ?? '-' }} | {{ $product->size ?? '-' }}</div>
+                            <div class="text-xs text-gray-400">{{ $product->material ?? '-' }} | {{ $product->type_of_model ?? '-' }}</div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-300">
-                            <div class="font-medium text-gray-900 dark:text-white">{{ $product->piece ?? 1 }} Piece</div>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">
+                            ₹{{ number_format($product->price, 2) }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                             <button wire:click="view({{ $product->id }})" title="View Details" class="p-1.5 bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 hover:bg-sky-100 rounded-lg transition">
@@ -91,15 +91,18 @@
 
     <!-- Create/Edit Modal -->
     @if($isOpen)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div class="bg-white dark:bg-gray-800 rounded-lg w-full max-w-xl p-6 max-h-screen overflow-y-auto">
-                <h3 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">{{ $isEditMode ? 'Edit Product' : 'Add New Product' }}</h3>
+        <div wire:ignore.self class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4 transition-all">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-700">
+                <div class="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-gray-700 mb-4">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ $isEditMode ? 'Edit Product' : 'Add New Product' }}</h3>
+                    <button wire:click="closeModal" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+                </div>
                 
                 <form wire:submit.prevent="store">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Product Name</label>
-                            <input wire:model="product_name" type="text" class="mt-1 block w-full border rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            <input wire:model="product_name" type="text" class="mt-1 block w-full border rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-indigo-500">
                             @error('product_name') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
 
@@ -113,6 +116,36 @@
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Product Alias</label>
                             <input wire:model="product_alias" type="text" class="mt-1 block w-full border rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                             @error('product_alias') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Price</label>
+                            <input wire:model="price" type="number" step="0.01" class="mt-1 block w-full border rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            @error('price') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Packing</label>
+                            <input wire:model="packing" type="text" class="mt-1 block w-full border rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            @error('packing') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Type of Model</label>
+                            <input wire:model="type_of_model" type="text" class="mt-1 block w-full border rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            @error('type_of_model') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Material</label>
+                            <input wire:model="material" type="text" class="mt-1 block w-full border rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            @error('material') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Model Key</label>
+                            <input wire:model="model_key" type="text" class="mt-1 block w-full border rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            @error('model_key') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
 
                         <div>
@@ -131,7 +164,7 @@
                             </select>
                             @error('category_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
-<!-- Finish, Size, and Pieces in a single row -->
+
                         <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Finish</label>
@@ -151,6 +184,7 @@
                                 @error('piece') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
                         </div>
+
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Product Image</label>
                             <input wire:model="image" type="file" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
@@ -172,9 +206,16 @@
                         </div>
                     </div>
 
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <button type="button" wire:click="closeModal" class="bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white px-4 py-2 rounded-md text-sm">Cancel</button>
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm">Save Product</button>
+                    <div class="mt-6 flex justify-end space-x-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <button type="button" wire:click="closeModal" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:text-white text-gray-800 px-4 py-2 rounded-xl text-sm font-medium transition">Cancel</button>
+                        
+                        <button type="submit" wire:loading.attr="disabled" wire:target="store" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition shadow-md flex items-center gap-2">
+                            <span wire:loading.remove wire:target="store">Save Product</span>
+                            <span wire:loading wire:target="store" class="flex items-center gap-2">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Saving...
+                            </span>
+                        </button>
                     </div>
                 </form>
             </div>
@@ -183,9 +224,9 @@
 
     <!-- Quick Add Category Modal -->
     @if($isCategoryModalOpen)
-        <div class="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div class="bg-white dark:bg-gray-800 rounded-xl max-w-sm w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-700">
-                <div class="flex justify-between items-center pb-3 border-b border-gray-200 dark:border-gray-700 mb-4">
+        <div wire:ignore.self class="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-700">
+                <div class="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-gray-700 mb-4">
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white">Add New Category</h3>
                     <button wire:click="closeCategoryModal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl">&times;</button>
                 </div>
@@ -203,11 +244,15 @@
                         @error('newCategoryDescription') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
 
-                    <div class="flex justify-end space-x-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                        <button type="button" wire:click="closeCategoryModal" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:text-white text-gray-800 text-sm font-medium rounded-md transition">Cancel</button>
-                        <button type="submit" wire:loading.attr="disabled" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition shadow flex items-center gap-2">
+                    <div class="flex justify-end space-x-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <button type="button" wire:click="closeCategoryModal" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:text-white text-gray-800 text-sm font-medium rounded-xl transition">Cancel</button>
+                        
+                        <button type="submit" wire:loading.attr="disabled" wire:target="storeCategory" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition shadow-md flex items-center gap-2">
                             <span wire:loading.remove wire:target="storeCategory">Save Category</span>
-                            <span wire:loading wire:target="storeCategory">Saving...</span>
+                            <span wire:loading wire:target="storeCategory" class="flex items-center gap-2">
+                                <svg class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Saving...
+                            </span>
                         </button>
                     </div>
                 </form>
@@ -217,16 +262,16 @@
 
     <!-- View Details Modal -->
     @if($isViewModalOpen && $viewingMyProduct)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm transition-opacity">
-            <div class="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all">
-                <div class="bg-white dark:bg-gray-800 px-6 py-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+        <div wire:ignore.self class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all border border-gray-100 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-800 px-6 py-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
                     <h3 class="text-lg font-bold text-gray-800 dark:text-white tracking-wide">Product Overview</h3>
                     <button wire:click="closeViewModal" class="text-gray-400 hover:text-gray-600 transition-colors focus:outline-none">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
                 <div class="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
-                    <div class="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-100 dark:border-gray-600 shadow-sm">
+                    <div class="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 shadow-sm">
                         <div class="flex-shrink-0">
                             @if($viewingMyProduct->image)
                                 <img src="{{ Storage::url($viewingMyProduct->image) }}" class="h-20 w-20 object-cover rounded-xl border-2 border-white shadow-md">
@@ -246,19 +291,39 @@
                     </div>
 
                     <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600">
                             <span class="block text-xs font-medium text-gray-400 uppercase tracking-wider">Category</span>
                             <span class="font-semibold text-gray-800 dark:text-gray-200">{{ $viewingMyProduct->category->name ?? 'N/A' }}</span>
                         </div>
-                        <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600">
+                            <span class="block text-xs font-medium text-gray-400 uppercase tracking-wider">Price</span>
+                            <span class="font-semibold text-gray-800 dark:text-gray-200">₹{{ number_format($viewingMyProduct->price, 2) }}</span>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600">
                             <span class="block text-xs font-medium text-gray-400 uppercase tracking-wider">Finish</span>
                             <span class="font-semibold text-gray-800 dark:text-gray-200">{{ $viewingMyProduct->finish ?? 'N/A' }}</span>
                         </div>
-                        <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600">
                             <span class="block text-xs font-medium text-gray-400 uppercase tracking-wider">Size</span>
                             <span class="font-semibold text-gray-800 dark:text-gray-200">{{ $viewingMyProduct->size ?? 'N/A' }}</span>
                         </div>
-                        <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600">
+                            <span class="block text-xs font-medium text-gray-400 uppercase tracking-wider">Material</span>
+                            <span class="font-semibold text-gray-800 dark:text-gray-200">{{ $viewingMyProduct->material ?? 'N/A' }}</span>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600">
+                            <span class="block text-xs font-medium text-gray-400 uppercase tracking-wider">Type of Model</span>
+                            <span class="font-semibold text-gray-800 dark:text-gray-200">{{ $viewingMyProduct->type_of_model ?? 'N/A' }}</span>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600">
+                            <span class="block text-xs font-medium text-gray-400 uppercase tracking-wider">Packing</span>
+                            <span class="font-semibold text-gray-800 dark:text-gray-200">{{ $viewingMyProduct->packing ?? 'N/A' }}</span>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600">
+                            <span class="block text-xs font-medium text-gray-400 uppercase tracking-wider">Model Key</span>
+                            <span class="font-semibold text-gray-800 dark:text-gray-200">{{ $viewingMyProduct->model_key ?? 'N/A' }}</span>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600 col-span-2">
                             <span class="block text-xs font-medium text-gray-400 uppercase tracking-wider">Pieces</span>
                             <span class="font-semibold text-gray-800 dark:text-gray-200">{{ $viewingMyProduct->piece ?? 1 }}</span>
                         </div>
@@ -271,7 +336,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 dark:bg-gray-700 px-6 py-3 flex justify-end border-t border-gray-100 dark:border-gray-600">
+                <div class="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end border-t border-gray-100 dark:border-gray-700">
                     <button wire:click="closeViewModal" class="bg-gray-800 hover:bg-gray-900 text-white px-5 py-2 rounded-xl text-sm font-medium shadow-sm transition-all">
                         Close
                     </button>
@@ -282,7 +347,7 @@
 
     <!-- Enlarge Image Preview Modal -->
     @if($isImageModalOpen && $previewingImage)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm transition-opacity" wire:click="closeImageModal">
+        <div wire:ignore.self class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm p-4" wire:click="closeImageModal">
             <div class="relative max-w-3xl max-h-[90vh] p-2" wire:click.stop>
                 <button wire:click="closeImageModal" class="absolute -top-3 -right-3 bg-white text-gray-800 rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors focus:outline-none">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -294,13 +359,16 @@
 
     <!-- CSV Import/Export Modal -->
     @if($isCsvModalOpen)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div class="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md p-6">
-                <h3 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">Import/Export Products CSV</h3>
+        <div wire:ignore.self class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-100 dark:border-gray-700">
+                <div class="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-gray-700 mb-4">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Import/Export Products CSV</h3>
+                    <button wire:click="closeCsvModal" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+                </div>
                 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Download Template</label>
-                    <button wire:click="exportSampleCsv" class="bg-gray-500 hover:bg-gray-600 text-white text-xs px-3 py-2 rounded">
+                    <button wire:click="exportSampleCsv" class="bg-gray-500 hover:bg-gray-600 text-white text-xs px-3 py-2 rounded-lg shadow-sm">
                         Download Sample CSV
                     </button>
                 </div>
@@ -312,9 +380,16 @@
                         @error('csvFile') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
 
-                    <div class="flex justify-end space-x-3">
-                        <button type="button" wire:click="closeCsvModal" class="bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white px-4 py-2 rounded-md text-sm">Cancel</button>
-                        <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-md text-sm">Import CSV</button>
+                    <div class="flex justify-end space-x-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <button type="button" wire:click="closeCsvModal" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:text-white text-gray-800 px-4 py-2 rounded-xl text-sm font-medium transition">Cancel</button>
+                        
+                        <button type="submit" wire:loading.attr="disabled" wire:target="importCsv" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl transition shadow-md flex items-center gap-2">
+                            <span wire:loading.remove wire:target="importCsv">Import CSV</span>
+                            <span wire:loading wire:target="importCsv" class="flex items-center gap-2">
+                                <svg class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Importing...
+                            </span>
+                        </button>
                     </div>
                 </form>
             </div>
