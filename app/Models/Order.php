@@ -43,4 +43,9 @@ class Order extends Model
     {
         return $this->belongsTo(Customer::class);
     }
+
+    public function activities()
+{
+    return $this->hasMany(OrderActivity::class)->latest();
+}
 }

@@ -21,9 +21,14 @@
     <!-- AUTHORIZED: FULL ORDER WORKFLOW -->
     <!-- Header Steps Bar -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-700 gap-2">
-        <div>
+       <div>
             <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Diora Direct Order Portal</h1>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Verified Mobile: <span class="font-semibold text-indigo-600 dark:text-indigo-400">{{ $customer_phone }}</span></p>
+            <div class="flex items-center gap-2 mt-0.5">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Verified Mobile: <span class="font-semibold text-indigo-600 dark:text-indigo-400">{{ $customer_phone }}</span></p>
+                <button wire:click="logout" type="button" class="text-[11px] text-red-500 hover:text-red-700 dark:text-red-400 underline font-medium ml-1">
+                    [ Change Number ]
+                </button>
+            </div>
         </div>
         <div class="flex items-center gap-2 text-xs sm:text-sm font-semibold">
             <span class="px-3 py-1 rounded-full {{ $step === 1 ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300' }}">1. Products</span>

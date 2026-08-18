@@ -115,7 +115,7 @@ class Orders extends Component
 
     public function view($id)
     {
-        $this->viewingOrder = Order::with('items.product')->findOrFail($id);
+        $this->viewingOrder = Order::with('items.product','activities')->findOrFail($id);
         $this->isViewModalOpen = true;
     }
 
@@ -167,7 +167,7 @@ class Orders extends Component
         }
     }
 
-    public function store()
+   public function store()
     {
         $this->validate();
 
@@ -188,6 +188,7 @@ class Orders extends Component
             'payment_status' => $this->payment_status,
         ]);
 
+
         foreach ($this->orderItems as $item) {
             $product = MyProduct::find($item['my_product_id']);
             
@@ -203,6 +204,16 @@ class Orders extends Component
                 'subtotal' => $item['quantity'] * $item['price'],
             ]);
         }
+
+        
+        // Record creation activity
+        \App\Models\OrderActivity::create([
+            'order_id' => $order->id,
+            'activity_type' => 'created',
+            'old_value' => null, // Fixed: Use PHP null instead of string 'NULL'
+            'new_value' => $order->status,
+            'description' => 'Order created with initial status: ' . ucfirst($order->status),
+        ]);
 
         session()->flash('message', 'Order created successfully.');
         $this->closeModal();
@@ -228,15 +239,41 @@ class Orders extends Component
 
     public function updateOrderStatus($orderId, $newStatus)
     {
-        $order = Order::findOrFail($orderId);
-        $order->update(['status' => $newStatus]);
-        session()->flash('message', "Order {$order->order_number} status updated to " . ucfirst($newStatus) . ".");
+       $order = Order::findOrFail($orderId);
+        $oldStatus = $order->status;
+
+        if ($oldStatus !== $newStatus) {
+            $order->update(['status' => $newStatus]);
+
+            \App\Models\OrderActivity::create([
+                'order_id' => $order->id,
+                'activity_type' => 'status_update',
+                'old_value' => $oldStatus,
+                'new_value' => $newStatus,
+                'description' => "Status changed from " . ucfirst($oldStatus) . " to " . ucfirst($newStatus),
+            ]);
+
+            session()->flash('message', "Order {$order->order_number} status updated to " . ucfirst($newStatus) . ".");
+        }
     }
 
     public function updatePaymentStatus($orderId, $newPaymentStatus)
     {
         $order = Order::findOrFail($orderId);
-        $order->update(['payment_status' => $newPaymentStatus]);
-        session()->flash('message', "Order {$order->order_number} payment status updated.");
+        $oldPaymentStatus = $order->payment_status;
+
+        if ($oldPaymentStatus !== $newPaymentStatus) {
+            $order->update(['payment_status' => $newPaymentStatus]);
+
+            \App\Models\OrderActivity::create([
+                'order_id' => $order->id,
+                'activity_type' => 'payment_status_update',
+                'old_value' => $oldPaymentStatus,
+                'new_value' => $newPaymentStatus,
+                'description' => "Payment status changed from " . ucfirst($oldPaymentStatus) . " to " . ucfirst($newPaymentStatus),
+            ]);
+
+            session()->flash('message', "Order {$order->order_number} payment status updated.");
+        }
     }
 }

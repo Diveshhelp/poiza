@@ -55,13 +55,13 @@ class StorefrontOrderForm extends Component
             $this->loadExistingCustomerData($this->customer_phone);
         }
     }
-
-    public function verifyMobile()
+public function verifyMobile()
     {
         $this->validate([
-            'auth_phone' => 'required|string|min:10|max:15',
+            'auth_phone' => 'required|string|exists:customers,phone',
         ], [
-            'auth_phone.required' => 'Please enter a valid mobile number.',
+            'auth_phone.required' => 'Please enter a mobile number.',
+            'auth_phone.exists' => 'This mobile number is not registered in our system. Please contact support.',
         ]);
 
         $cleanPhone = trim($this->auth_phone);
@@ -251,6 +251,17 @@ class StorefrontOrderForm extends Component
             ]);
         }
 
+        
+        
+        // Record creation activity
+        \App\Models\OrderActivity::create([
+            'order_id' => $order->id,
+            'activity_type' => 'created',
+            'old_value' => null, // Fixed: Use PHP null instead of string 'NULL'
+            'new_value' => $order->status,
+            'description' => 'Order created with initial status: ' . ucfirst($order->status),
+        ]);
+
         $this->placedOrder = $order;
         $this->cart = [];
         $this->step = 3; 
@@ -263,5 +274,21 @@ class StorefrontOrderForm extends Component
         $this->cart = [];
         $this->search = '';
         $this->selectedCategory = '';
+    }
+
+    public function logout()
+    {
+        session()->forget('verified_customer_phone');
+        
+        $this->isAuthorized = false;
+        $this->auth_phone = '';
+        $this->customer_phone = '';
+        $this->customer_name = '';
+        $this->customer_email = '';
+        $this->shipping_address = '';
+        $this->cart = [];
+        $this->step = 1;
+
+        session()->flash('message', 'Successfully logged out. Enter a mobile number to continue.');
     }
 }
