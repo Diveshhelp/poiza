@@ -9,7 +9,7 @@ use App\Models\Customer;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Str;
-
+use Illuminate\Http\Request;
 class StorefrontOrderForm extends Component
 {
     use WithPagination;
@@ -47,14 +47,19 @@ class StorefrontOrderForm extends Component
         $this->resetPage();
     }
 
-    public function mount()
-    {
-        if (session()->has('verified_customer_phone')) {
-            $this->isAuthorized = true;
-            $this->customer_phone = session('verified_customer_phone');
-            $this->loadExistingCustomerData($this->customer_phone);
-        }
+    public function mount(Request $request)
+{
+    // Check if phone was passed via query parameter from customers page
+    $phone = $request->query('phone') ?? session('verified_customer_phone');
+
+    if ($phone) {
+        $this->isAuthorized = true;
+        $this->auth_phone = $phone;
+        $this->customer_phone = $phone;
+        session(['verified_customer_phone' => $phone]);
+        $this->loadExistingCustomerData($phone);
     }
+}
     public function verifyMobile()
     {
         $this->validate([

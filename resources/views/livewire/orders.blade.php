@@ -5,9 +5,9 @@
             <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Order Management</h2>
             <p class="text-xs text-gray-500 dark:text-gray-400">Track customer orders, update statuses, and review complete activity audit trails.</p>
         </div>
-        <!-- <button wire:click="create" class="px-3 py-2 text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg text-xs md:text-sm font-semibold shadow transition">
+            <a href="{{ route('storefront.order') }}" wire:navigate class="px-2 py-1 text-white hover:dark:text-dark-bg before:[content:''] relative z-[5] before:absolute before:left-0 before:h-full bg-primary dark:bg-secondary before:bg-secondary before:dark:bg-white hover:text-white no-underline transition-all ease-in-out duration-300 hover:before:w-full before:transition-all before:ease-in-out before:duration-300 before:z-[-1] flex justify-center items-center text-xs md:text-sm font-semibold before:w-0 border-0">
             + Add New Order
-        </button> -->
+        </a>
     </div>
     
     <!-- Flash Message -->
@@ -97,7 +97,9 @@
                         <tr wire:key="order-row-{{ $order->id }}" class=" cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 transition" >
                             <td class="px-6 py-4" wire:click="view({{ $order->id }})" title="View Order Details & Audit History">
                                 <div class="font-bold font-mono text-indigo-600 dark:text-indigo-400">{{ $order->order_number }}</div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ $order->created_at->format('d M Y, h:i A') }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ Carbon\Carbon::parse($order->created_at)->setTimezone('Asia/Kolkata')->format('d M Y, h:i:s A') }}
+                        </div>
                             </td>
                             <td class="px-6 py-4">
                                 <div class="font-bold text-gray-900 dark:text-white">{{ $order->customer_name }}</div>
@@ -289,7 +291,9 @@
                             <span>Order Details:</span>
                             <span class="font-mono text-indigo-600 dark:text-indigo-400">{{ $viewingOrder->order_number }}</span>
                         </h3>
-                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ $viewingOrder->created_at->format('d M Y, h:i A') }}</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                         {{ Carbon\Carbon::parse($order->viewingOrder)->setTimezone('Asia/Kolkata')->format('d M Y, h:i:s A') }}
+                         </span>
                     </div>
                     <button wire:click="closeViewModal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-semibold focus:outline-none">&times;</button>
                 </div>
