@@ -190,14 +190,16 @@
                             <input wire:model="image" type="file" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
                             @error('image') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             
+                            <!-- Show preview if a NEW image file is uploaded -->
                             @if ($image && is_object($image))
                                 <div class="mt-3 flex items-center space-x-3">
                                     <img src="{{ $image->temporaryUrl() }}" class="h-20 w-20 object-cover rounded-lg border shadow-sm">
                                     <button type="button" wire:click="$set('image', null)" class="text-xs text-red-600 hover:text-red-800 font-medium">Clear Upload</button>
                                 </div>
-                            @elseif($image && is_string($image))
+                            <!-- Show existing image from database if editing and no new image is chosen -->
+                            @elseif (!empty($existingImage))
                                 <div class="mt-3 flex items-center space-x-3">
-                                    <img src="{{ Storage::url($image) }}" class="h-20 w-20 object-cover rounded-lg border shadow-sm">
+                                    <img src="{{ Storage::url($existingImage) }}" class="h-20 w-20 object-cover rounded-lg border shadow-sm">
                                     <button type="button" wire:click="removeImage" onclick="confirm('Are you sure you want to delete this image?') || event.stopImmediatePropagation()" class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors">
                                         Remove Image
                                     </button>
@@ -358,41 +360,123 @@
     @endif
 
     <!-- CSV Import/Export Modal -->
-    @if($isCsvModalOpen)
-        <div wire:ignore.self class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-100 dark:border-gray-700">
-                <div class="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-gray-700 mb-4">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Import/Export Products CSV</h3>
-                    <button wire:click="closeCsvModal" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+   @if($isCsvModalOpen)
+    <div wire:ignore.self class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
+        <!-- Full-size / Wide Modal Container -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full {{ $showPreview ? 'max-w-7xl w-[95vw]' : 'max-w-md' }} p-6 sm:p-8 border border-gray-100 dark:border-gray-700 transition-all duration-300 flex flex-col max-h-[92vh]">
+            
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-gray-700 mb-4 shrink-0">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+                        {{ $showPreview ? 'Preview CSV Data Records' : 'Import/Export Products CSV' }}
+                    </h3>
+                    @if($showPreview)
+                        <p class="text-xs text-gray-500 mt-1">Review all parsed rows below before saving to the database. Total records found: <span class="font-bold text-indigo-600 dark:text-indigo-400">{{ count($previewData) }}</span></p>
+                    @endif
                 </div>
-                
+                <button wire:click="closeCsvModal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-3xl font-semibold">&times;</button>
+            </div>
+            
+            <!-- Session Messages -->
+            @if (session()->has('message'))
+                <div class="mb-4 p-3 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-semibold shrink-0">
+                    {{ session('message') }}
+                </div>
+            @endif
+            @if (session()->has('error'))
+                <div class="mb-4 p-3 bg-red-100 text-red-800 rounded-lg text-xs font-semibold shrink-0">
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            <!-- VIEW 1: UPLOAD & TEMPLATE FORM -->
+            @if(!$showPreview)
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Download Template</label>
-                    <button wire:click="exportSampleCsv" class="bg-gray-500 hover:bg-gray-600 text-white text-xs px-3 py-2 rounded-lg shadow-sm">
+                    <button type="button" wire:click="exportSampleCsv" class="bg-gray-500 hover:bg-gray-600 text-white text-xs px-3 py-2 rounded-lg shadow-sm transition">
                         Download Sample CSV
                     </button>
                 </div>
 
-                <form wire:submit.prevent="importCsv">
+                <form wire:submit.prevent="previewCsv">
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload CSV File</label>
                         <input wire:model="csvFile" type="file" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                        @error('csvFile') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        @error('csvFile') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                     <div class="flex justify-end space-x-3 pt-3 border-t border-gray-100 dark:border-gray-700">
                         <button type="button" wire:click="closeCsvModal" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:text-white text-gray-800 px-4 py-2 rounded-xl text-sm font-medium transition">Cancel</button>
                         
-                        <button type="submit" wire:loading.attr="disabled" wire:target="importCsv" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl transition shadow-md flex items-center gap-2">
-                            <span wire:loading.remove wire:target="importCsv">Import CSV</span>
-                            <span wire:loading wire:target="importCsv" class="flex items-center gap-2">
-                                <svg class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                Importing...
-                            </span>
+                        <button type="submit" wire:loading.attr="disabled" wire:target="csvFile, previewCsv" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition shadow-md flex items-center gap-2">
+                            <span wire:loading.remove wire:target="csvFile, previewCsv">Preview CSV Data</span>
+                            <span wire:loading wire:target="csvFile, previewCsv">Uploading & Parsing...</span>
                         </button>
                     </div>
                 </form>
+            @else
+
+            <!-- VIEW 2: FULL SIZE PREVIEW TABLE -->
+            <div class="space-y-4 flex-1 flex flex-col min-h-0">
+                <!-- Taller scrollable area taking up most of the full window space -->
+                <div class="border rounded-xl overflow-auto flex-1 dark:border-gray-700 shadow-sm">
+                    <table class="w-full text-left text-xs min-w-[900px]">
+                        <thead class="bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th class="p-3">#</th>
+                                <th class="p-3">Product Name</th>
+                                <th class="p-3">Code</th>
+                                <th class="p-3">Category</th>
+                                <th class="p-3">Size</th>
+                                <th class="p-3">Finish</th>
+                                <th class="p-3">Material</th>
+                                <th class="p-3">Packing</th>
+                                <th class="p-3">Type</th>
+                                <th class="p-3">Key</th>
+                                <th class="p-3 text-right">Price</th>
+                                <th class="p-3 text-center">Piece</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700 text-gray-700 dark:text-gray-200">
+                            @foreach($previewData as $index => $row)
+                                <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/20">
+                                    <td class="p-3 font-mono text-gray-400">{{ $index + 1 }}</td>
+                                    <td class="p-3 font-bold text-gray-900 dark:text-white">{{ $row['product_name'] }}</td>
+                                    <td class="p-3 font-mono text-indigo-600 dark:text-indigo-400">{{ $row['product_code'] }}</td>
+                                    <td class="p-3">{{ $row['category_name'] ?? 'N/A' }}</td>
+                                    <td class="p-3">{{ $row['size'] ?? '-' }}</td>
+                                    <td class="p-3">{{ $row['finish'] ?? '-' }}</td>
+                                    <td class="p-3">{{ $row['material'] ?? '-' }}</td>
+                                    <td class="p-3">{{ $row['packing'] ?? '-' }}</td>
+                                    <td class="p-3">{{ $row['type_of_model'] ?? '-' }}</td>
+                                    <td class="p-3 font-mono text-gray-500">{{ $row['model_key'] ?? '-' }}</td>
+                                    <td class="p-3 text-right font-bold">₹{{ number_format($row['price'], 2) }}</td>
+                                    <td class="p-3 text-center">{{ $row['piece'] }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="flex justify-between items-center pt-3 border-t border-gray-100 dark:border-gray-700 shrink-0">
+                    <button type="button" wire:click="cancelPreview" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:text-white text-gray-800 px-5 py-2.5 rounded-xl text-xs font-semibold transition">
+                        &larr; Re-upload File
+                    </button>
+                    
+                    <button type="button" wire:click="confirmImport" wire:loading.attr="disabled" wire:target="confirmImport" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-md flex items-center gap-2">
+                        <span wire:loading.remove wire:target="confirmImport">Confirm & Import All Records</span>
+                        <span wire:loading wire:target="confirmImport" class="flex items-center gap-2">
+                            <svg class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            Saving Records...
+                        </span>
+                    </button>
+                </div>
             </div>
+            @endif
+
         </div>
-    @endif
+    </div>
+@endif
 </div>

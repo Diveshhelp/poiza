@@ -19,7 +19,7 @@ class MyProducts extends Component
 
     public $search = '';
     public $myProductId;
-    
+
     // Product Fields mapped to spreadsheet headers
     public $product_name, $product_code, $product_alias, $category_id, $finish, $size, $image, $piece = 1;
     public $price, $packing, $type_of_model, $material, $category_name, $model_key;
@@ -32,13 +32,15 @@ class MyProducts extends Component
 
     // CSV Import Property
     public $csvFile;
+    public $previewData = [];
+    public $showPreview = false;
     public $isCsvModalOpen = false;
-    
+
     // Category Modal Properties
     public $isCategoryModalOpen = false;
     public $newCategoryName;
     public $newCategoryDescription;
-
+    public $existingImage;  // Holds current database image string path during edit
     protected $queryString = ['search' => ['except' => '']];
 
     // Image Preview Modal Properties
@@ -77,7 +79,7 @@ class MyProducts extends Component
             'material' => 'nullable|string|max:255',
             'category_name' => 'nullable|string|max:255',
             'model_key' => 'nullable|string|max:255|unique:my_products,model_key,' . $this->myProductId,
-            'image' => 'nullable|image|max:2048',
+            'image' => 'nullable|image',
             'piece' => 'required|numeric|min:1',
         ];
     }
@@ -99,7 +101,7 @@ class MyProducts extends Component
             })
             ->latest()
             ->paginate(10);
-            
+
         $categories = Category::where('status', 'active')->orderBy('name')->get();
 
         return view('livewire.my-products', [
@@ -127,14 +129,10 @@ class MyProducts extends Component
         $this->isOpen = true;
         $this->isEditMode = false;
     }
-
     public function store()
     {
+        // Validation rule for image should be nullable/sometimes: 'image' => 'nullable|image|max:2048'
         $this->validate();
-
-        $imagePath = $this->image && is_object($this->image) 
-            ? $this->image->store('my-products', 'public') 
-            : $this->image;
 
         $data = [
             'product_name' => $this->product_name,
@@ -150,15 +148,22 @@ class MyProducts extends Component
             'category_name' => $this->category_name,
             'model_key' => $this->model_key,
             'piece' => $this->piece,
-            'image' => $imagePath,
         ];
+
+        // If a new image file object is uploaded, store it and update the path
+        if ($this->image && is_object($this->image)) {
+            // Delete old image if it exists
+            if ($this->existingImage) {
+                \Storage::disk('public')->delete($this->existingImage);
+            }
+            $data['image'] = $this->image->store('my-products', 'public');
+        } else {
+            // Keep existing image if no new file was uploaded
+            $data['image'] = $this->existingImage;
+        }
 
         if (!$this->myProductId) {
             $data['uuid'] = (string) Str::uuid();
-        } else {
-            if (!$this->image || !is_object($this->image)) {
-                unset($data['image']);
-            }
         }
 
         MyProduct::updateOrCreate(['id' => $this->myProductId], $data);
@@ -186,10 +191,13 @@ class MyProducts extends Component
         $this->category_name = $product->category_name;
         $this->model_key = $product->model_key;
         $this->piece = $product->piece ?? 1;
-        $this->image = $product->image;
 
         $this->isEditMode = true;
         $this->isOpen = true;
+
+        // Assign existing image path separately so file input doesn't bind to string
+        $this->existingImage = $product->image;
+        $this->image = null; // Clear new upload field
     }
 
     public function delete($id)
@@ -210,52 +218,47 @@ class MyProducts extends Component
         $this->isCsvModalOpen = true;
     }
 
-    public function closeCsvModal()
-    {
-        $this->isCsvModalOpen = false;
-        $this->csvFile = null;
-    }
 
-   public function exportSampleCsv(): StreamedResponse
+    public function exportSampleCsv(): StreamedResponse
     {
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="my_products_sample.csv"',
         ];
 
-        $callback = function() {
+        $callback = function () {
             $file = fopen('php://output', 'w');
-            
+
             // CSV Header Row in camelCase with bold text styling if opened in markdown/spreadsheet headers
             fputcsv($file, [
-                'Product Name', 
-                'Product Code', 
-                'Size', 
-                'Finish', 
-                'Price', 
-                'Packing', 
-                'Type Of Model', 
-                'Material', 
-                'Product Category', 
-                'Model Key', 
-                'Product Alias', 
+                'Product Name',
+                'Product Code',
+                'Size',
+                'Finish',
+                'Price',
+                'Packing',
+                'Type Of Model',
+                'Material',
+                'Product Category',
+                'Model Key',
+                'Product Alias',
                 'Piece'
-                
+
             ]);
 
             // Sample Data Row matching the updated camelCase columns
             fputcsv($file, [
-                'Glossy Mortise Handle', 
-                'PH0001', 
-                '200mm', 
-                'Glossy', 
-                '450.00', 
-                'Box', 
-                'Mortise Handle', 
-                'Steel', 
-                'Mortise Handles', 
-                'PH0001-200-GL', 
-                'Mortise Lock Handle', 
+                'Glossy Mortise Handle',
+                'PH0001',
+                '200mm',
+                'Glossy',
+                '450.00',
+                'Box',
+                'Mortise Handle',
+                'Steel',
+                'Mortise Handles',
+                'PH0001-200-GL',
+                'Mortise Lock Handle',
                 '1'
             ]);
 
@@ -264,76 +267,129 @@ class MyProducts extends Component
 
         return response()->stream($callback, 200, $headers);
     }
+    // 1. Re-write or add this method to handle the initial CSV parsing and trigger preview mode
+    public function previewCsv()
+{
+    $this->validate([
+        'csvFile' => 'required|file|mimes:csv,txt|max:2048',
+    ]);
 
-    public function importCsv()
+    // Ensure the file exists and is uploaded properly before getting path
+    if (!$this->csvFile) {
+        session()->flash('error', 'Please wait for the file upload to finish before clicking preview.');
+        return;
+    }
+
+    $path = $this->csvFile->getRealPath();
+    
+    // Fallback safety if temporary path is empty during rapid click
+    if (!$path || !file_exists($path)) {
+        session()->flash('error', 'File upload is still processing. Please try clicking preview again.');
+        return;
+    }
+
+    $file = fopen($path, 'r');
+
+    // Skip the header row
+    fgetcsv($file);
+    $this->previewData = [];
+
+    while (($row = fgetcsv($file)) !== false) {
+        if (count($row) >= 2) {
+            $this->previewData[] = [
+                'product_name'  => $row[0] ?? '',
+                'product_code'  => $row[1] ?? '',
+                'size'          => $row[2] ?? null,
+                'finish'        => $row[3] ?? null,
+                'price'         => is_numeric($row[4] ?? null) ? $row[4] : 1,
+                'packing'       => $row[5] ?? null,
+                'type_of_model' => $row[6] ?? null,
+                'material'      => $row[7] ?? null,
+                'category_name' => $row[8] ?? null,
+                'model_key'     => $row[9] ?? null,
+                'product_alias' => $row[10] ?? null,
+                'piece'         => is_numeric($row[11] ?? null) ? $row[11] : 1,
+            ];
+        }
+    }
+
+    fclose($file);
+
+    if (empty($this->previewData)) {
+        session()->flash('error', 'The uploaded CSV file is empty or formatted incorrectly.');
+        return;
+    }
+
+    // Switch the modal view to show the table preview
+    $this->showPreview = true;
+}
+    // 2. Add this method to go back from preview to upload form
+    public function cancelPreview()
     {
-        $this->validate([
-            'csvFile' => 'required|mimes:csv,txt|max:2048',
-        ]);
+        $this->showPreview = false;
+        $this->previewData = [];
+        $this->csvFile = null;
+    }
 
-        $path = $this->csvFile->getRealPath();
-        $file = fopen($path, 'r');
-        
-        fgetcsv($file); 
+    // 3. Add this method to handle the final database import after confirmation
+    public function confirmImport()
+    {
         $rowCount = 0;
 
-        while (($row = fgetcsv($file)) !== false) {
-            if (count($row) >= 2) {
-                $categoryName = $row[8] ?? null; // Spreadsheet Category column index
-                $categoryId = null;
+        foreach ($this->previewData as $row) {
+            $categoryName = $row['category_name'];
+            $categoryId = null;
 
-                if (!empty($categoryName)) {
-                    $category = Category::firstOrCreate(
-                        ['name' => trim($categoryName)],
-                        [
-                            'uuid' => (string) Str::uuid(),
-                            'slug' => Str::slug($categoryName),
-                            'status' => 'active'
-                        ]
-                    );
-                    $categoryId = $category->id;
-                }
+            if (!empty($categoryName)) {
+                $category = Category::firstOrCreate(
+                    ['name' => trim($categoryName)],
+                    [
+                        'uuid' => (string) Str::uuid(),
+                        'slug' => Str::slug($categoryName),
+                        'status' => 'active'
+                    ]
+                );
+                $categoryId = $category->id;
+            }
 
-                $data = [
-                    'product_name' => $row[0] ?? '',
-                    'product_code' => $row[1] ?? '',
-                    'size' => $row[2] ?? null,
-                    'finish' => $row[3] ?? null,
-                    'price' => is_numeric($row[4] ?? null) ? $row[4] : 1,
-                    'packing' => $row[5] ?? null,
-                    'type_of_model' => $row[6] ?? null,
-                    'material' => $row[7] ?? null,
-                    'category_name' => $categoryName,
-                    'category_id' => $categoryId,
-                    'model_key' => $row[9] ?? null,
-                    'product_alias' => $row[10] ?? null,
-                    'piece' => is_numeric($row[11] ?? null) ? $row[11] : 1,
-                    'image' => null,
-                ];
+            $data = array_merge($row, [
+                'category_id' => $categoryId,
+                'image' => null,
+            ]);
 
-                $validator = Validator::make($data, [
-                    'product_name' => 'required|string|max:255',
-                    'product_code' => 'required|string|max:100',
-                ]);
+            $validator = Validator::make($data, [
+                'product_name' => 'required|string|max:255',
+                'product_code' => 'required|string|max:100',
+            ]);
 
-                if (!$validator->fails()) {
-                    MyProduct::updateOrCreate(
-                        ['product_code' => $data['product_code']],
-                        array_merge($data, [
-                            'uuid' => MyProduct::where('product_code', $data['product_code'])->value('uuid') ?? (string) Str::uuid()
-                        ])
-                    );
-                    $rowCount++;
-                }
+            if (!$validator->fails()) {
+                MyProduct::updateOrCreate(
+                    ['product_code' => $data['product_code']],
+                    array_merge($data, [
+                        'uuid' => MyProduct::where('product_code', $data['product_code'])->value('uuid') ?? (string) Str::uuid()
+                    ])
+                );
+                $rowCount++;
             }
         }
 
-        fclose($file);
+        // Reset state and close modal
+        $this->showPreview = false;
+        $this->previewData = [];
+        $this->csvFile = null;
 
         session()->flash('message', "Successfully imported {$rowCount} product records from CSV.");
         $this->closeCsvModal();
     }
 
+    // Ensure your closeCsvModal also clears the preview state when closed manually
+    public function closeCsvModal()
+    {
+        $this->isCsvModalOpen = false;
+        $this->showPreview = false;
+        $this->previewData = [];
+        $this->csvFile = null;
+    }
     public function closeModal()
     {
         $this->isOpen = false;
@@ -347,12 +403,12 @@ class MyProducts extends Component
     private function generateProductCode()
     {
         $lastProduct = MyProduct::orderBy('id', 'desc')->first();
-        
+
         if ($lastProduct && preg_match('/PH(\d+)/', $lastProduct->product_code, $matches)) {
             $nextNumber = intval($matches[1]) + 1;
             return 'PH' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         }
-        
+
         return 'PH0001';
     }
 
@@ -426,5 +482,6 @@ class MyProducts extends Component
         $this->model_key = '';
         $this->piece = 1;
         $this->image = null;
+        $this->existingImage = null;
     }
 }
