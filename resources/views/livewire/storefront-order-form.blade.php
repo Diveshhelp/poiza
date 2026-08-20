@@ -1,10 +1,28 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 bg-white dark:bg-gray-800 shadow-xl rounded-2xl my-6 border border-gray-200 dark:border-gray-700">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 bg-white dark:bg-gray-800 shadow-xl rounded-2xl my-6 border border-gray-200 dark:border-gray-700 space-y-6">
     
+    <!-- BRAND LOGO HEADER (Clear & Prominent) -->
+    <div class="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-700">
+        <div class="flex items-center gap-4">
+            <!-- Large Prominent Logo Container -->
+            <div class="px-4 py-2.5 bg-white dark:bg-slate-900 rounded-2xl border-2 border-indigo-500/20 dark:border-indigo-500/40 shadow-md flex items-center justify-center">
+                <img src="{{ asset('logo-.png') }}" alt="Poiza Interiror Touch Logo" class="h-14 sm:h-16 w-auto object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div style="display: none;" class="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white items-center justify-center font-black text-xl shadow">P</div>
+            </div>
+            <div>
+                <h1 class="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-white tracking-tight">Poiza Interiror Touch</h1>
+                <p class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold uppercase tracking-wider mt-0.5">Wholesale Hardware Catalog</p>
+            </div>
+        </div>
+        <div class="hidden sm:block text-right">
+            <span class="text-xs text-gray-400 dark:text-gray-500 font-mono">Secure Ordering Portal</span>
+        </div>
+    </div>
+
     <!-- IF NOT VERIFIED: MOBILE NUMBER ENTRY SCREEN -->
     @if(!$isAuthorized)
-        <div class="max-w-md mx-auto py-16 text-center space-y-4">
+        <div class="max-w-md mx-auto py-12 text-center space-y-4">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Enter Mobile Number to Order</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Please enter your mobile phone number to unlock the Diora hardware catalog and place your order.</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Please enter your mobile phone number to unlock the Poiza Interiror Touch hardware catalog and place your order.</p>
             
             <form wire:submit.prevent="verifyMobile" class="space-y-3 pt-2">
                 <div>
@@ -20,9 +38,9 @@
 
     <!-- AUTHORIZED: FULL ORDER WORKFLOW -->
     <!-- Header Steps Bar -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-700 gap-2">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-gray-200 dark:border-gray-700 gap-2">
        <div>
-            <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{{ config('app.name') }} Order Portal</h1>
+            <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Order Portal</h2>
             <div class="flex items-center gap-2 mt-0.5">
                 <p class="text-xs text-gray-500 dark:text-gray-400">Verified Mobile: <span class="font-semibold text-indigo-600 dark:text-indigo-400">{{ $customer_phone }}</span></p>
                 <button wire:click="logout" type="button" class="text-[11px] text-red-500 hover:text-red-700 dark:text-red-400 underline font-medium ml-1">
@@ -130,7 +148,7 @@
                                     </div>
                                 </div>
 
-                                <!-- Right side: Pricing & Quantity Controls (Non-overlapping Stack) -->
+                                <!-- Right side: Pricing & Quantity Controls -->
                                 <div class="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-200 dark:border-gray-600">
                                     <div class="text-sm font-bold text-emerald-600 dark:text-emerald-400">
                                         ₹{{ number_format($product->price ?? 0, 2) }}
