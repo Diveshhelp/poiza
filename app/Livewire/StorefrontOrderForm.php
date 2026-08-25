@@ -248,7 +248,8 @@ class StorefrontOrderForm extends Component
             OrderItem::create([
                 'order_id' => $order->id,
                 'product_id' => $product->id,
-                'product_name' => $product->product_name . ' (' . $item['quantity'] . ' ' . $unitLabel . 's)',
+                'model_ket' => $product->model_key,
+                'product_name' => $product->product_name . ' (' . $product->piece .' pieces)',
                 'sku' => $product->product_code,
                 'unit_price' => $item['unit_price'],
                 'quantity' => $item['quantity'],

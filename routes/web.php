@@ -24,6 +24,7 @@ use App\Livewire\MyReferral;
 use App\Livewire\MySubscription;
 use App\Livewire\MyVideos;
 use App\Livewire\NatureOfWorkManager;
+use App\Livewire\OrderProcessManager;
 use App\Livewire\Orders;
 use App\Livewire\PasswordCollection;
 use App\Livewire\Photos;
@@ -52,6 +53,7 @@ use App\Livewire\UserManager;
 use App\Livewire\UserUnsubscribe;
 use App\Livewire\Videos;
 use App\Models\Branches;
+use App\Models\OrderProcess;
 use App\Models\Video;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
@@ -142,7 +144,8 @@ Route::middleware([
     Route::get('/customers', Customers::class)->name('customers');
     Route::get('/products', Products::class)->name('products');
     Route::get('/orders', Orders::class)->name('orders');
-    
+    Route::get('/order-process/{order}', OrderProcessManager::class)->name('order-process');
+
     Route::get('/my-photos', MyPhotos::class)->name('my-photos');
     Route::get('/photos', Photos::class)->name('photos');
 

@@ -6,10 +6,10 @@
             <p class="text-sm text-gray-500 dark:text-gray-400">Manage products, variants, finishes, and bulk CSV imports.</p>
         </div>
         <div class="flex items-center gap-3">
-            <button wire:click="openCsvModal" class="px-3 py-2 text-white bg-primary dark:bg-secondary rounded-lg text-xs md:text-sm font-semibold hover:opacity-90 transition">
+            <button wire:click="openCsvModal" class="px-2 py-1 text-white hover:dark:text-dark-bg before:[content:''] relative z-[5] before:absolute before:left-0 before:h-full bg-primary dark:bg-secondary before:bg-secondary before:dark:bg-white hover:text-white no-underline transition-all ease-in-out duration-300 hover:before:w-full before:transition-all before:ease-in-out before:duration-300 before:z-[-1] flex justify-center items-center text-xs md:text-sm font-semibold before:w-0 border-0">
                 Import CSV
             </button>
-            <button wire:click="create" class="px-3 py-2 text-white bg-primary dark:bg-secondary rounded-lg text-xs md:text-sm font-semibold hover:opacity-90 transition">
+            <button wire:click="create" class="px-2 py-1 text-white hover:dark:text-dark-bg before:[content:''] relative z-[5] before:absolute before:left-0 before:h-full bg-primary dark:bg-secondary before:bg-secondary before:dark:bg-white hover:text-white no-underline transition-all ease-in-out duration-300 hover:before:w-full before:transition-all before:ease-in-out before:duration-300 before:z-[-1] flex justify-center items-center text-xs md:text-sm font-semibold before:w-0 border-0">
                 Add Product
             </button>
         </div>

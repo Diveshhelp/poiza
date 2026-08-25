@@ -45,7 +45,11 @@ class Order extends Model
     }
 
     public function activities()
-{
-    return $this->hasMany(OrderActivity::class)->latest();
-}
+    {
+        return $this->hasMany(OrderActivity::class)->latest();
+    }
+    public function processDetails(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(OrderProcess::class);
+    }
 }
