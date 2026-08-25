@@ -33,10 +33,14 @@ class OrderItem extends Model
 
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(MyProduct::class);
     }
     public function castingRecord(): HasOne
     {
         return $this->hasOne(CastingRecord::class, 'order_item_id');
+    }
+    public function turningPieces(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(TurningPiece::class, 'order_item_id');
     }
 }
