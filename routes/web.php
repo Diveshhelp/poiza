@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\NatureofworkController;
+use App\Http\Livewire\BuffPriceManager;
 use App\Livewire\AuthorityManager;
 use App\Livewire\BranchManager;
 use App\Livewire\BugTrackingManager;
@@ -145,6 +146,7 @@ Route::middleware([
     Route::get('/products', Products::class)->name('products');
     Route::get('/orders', Orders::class)->name('orders');
     Route::get('/order-process/{order}', OrderProcessManager::class)->name('order-process');
+    Route::get('/buff-prices', \App\Livewire\BuffPriceManager::class)->name('buff-prices');
 
     Route::get('/my-photos', MyPhotos::class)->name('my-photos');
     Route::get('/photos', Photos::class)->name('photos');

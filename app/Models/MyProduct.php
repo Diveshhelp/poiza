@@ -36,6 +36,7 @@ class MyProduct extends Model
     }
     public function buffPrices(): HasMany
     {
-        return $this->hasMany(BuffPiece::class, 'product_id');
+        return $this->hasMany(BuffPrice::class, 'product_id');
     }
+    
 }

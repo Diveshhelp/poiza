@@ -6,6 +6,8 @@
             <p class="text-sm text-gray-500 dark:text-gray-400">Manage hardware items, SKUs, wholesale pricing, and stock limits.</p>
         </div>
         <div class="flex items-center gap-3">
+            <!-- BUFF PRICES LINK BUTTON -->
+   
             <button wire:click="openCsvModal" class="px-2 py-1 text-white hover:dark:text-dark-bg before:[content:''] relative z-[5] before:absolute before:left-0 before:h-full bg-primary dark:bg-secondary before:bg-secondary before:dark:bg-white hover:text-white no-underline transition-all ease-in-out duration-300 hover:before:w-full before:transition-all before:ease-in-out before:duration-300 before:z-[-1] flex justify-center items-center text-xs md:text-sm font-semibold before:w-0 border-0">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                 Import CSV
