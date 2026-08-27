@@ -255,71 +255,86 @@
             <h3 class="text-lg font-bold text-gray-900">Buff Department Tracking & Pricing</h3>
             <p class="text-xs text-gray-500 mt-1">Manage finish specifications, individual piece counts, received quantities, and unit pricing.</p>
         </div>
+<div class="space-y-4">
+    @foreach($order->items as $item)
+        @if(!$item->product_id) @continue @endif
 
-        <div class="space-y-6">
-            @foreach($order->items as $item)
-                @if(!$item->product_id) @continue @endif
+        @php
+            $productPieces = 1;
+            if ($item->product) {
+                $productPieces = $item->product->piece ?? (int)($item->product->packing ?? 1);
+            }
+            $productPieces = max(1, $productPieces);
+            $productFinish = $item->product->finish ?? $item->finish ?? 'Standard';
+        @endphp
 
-                @php
-                    $productPieces = 1;
-                    if ($item->product) {
-                        $productPieces = $item->product->piece ?? (int)($item->product->packing ?? 1);
-                    }
-                    $productFinish = $item->product->finish ?? $item->finish ?? 'Standard Finish';
-                @endphp
-
-                <div class="border border-gray-200 rounded-xl p-5 bg-gray-50/50">
-                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 pb-3 border-b border-gray-200 gap-2">
-                        <div>
-                            <span class="font-bold text-gray-800 text-base">{{ $item->product_name }}</span>
-                            <span class="text-xs text-gray-400 ml-2">SKU: {{ $item->sku ?? 'N/A' }}</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1 rounded-md border border-amber-200">
-                                Finish: {{ $productFinish }}
-                            </span>
-                            <span class="text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-md">
-                                {{ max(1, $productPieces) }} Parts
-                            </span>
-                        </div>
+        <!-- Single Compact Row Container -->
+        <div class="bg-white rounded-xl border border-gray-200/80 shadow-2xs p-4 hover:border-gray-300 transition-all">
+            <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+                
+                <!-- Left Column: Product Identity & Details (Fixed width proportion) -->
+                <div class="xl:w-1/4 space-y-1">
+                    <div class="flex items-center justify-between xl:justify-start gap-2">
+                        <span class="font-bold text-gray-900 text-xs tracking-tight truncate max-w-[200px]" title="{{ $item->product_name }}">
+                            {{ $item->product_name }}
+                        </span>
+                        <span class="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 whitespace-nowrap">
+                            {{ $productFinish }}
+                        </span>
                     </div>
+                    <div class="flex items-center gap-2 text-[11px] text-gray-400">
+                        <span>SKU: <strong class="text-gray-600 font-medium">{{ $item->sku ?? 'N/A' }}</strong></span>
+                        <span>•</span>
+                        <span class="text-indigo-600 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded text-[10px]">
+                            {{ $productPieces }} {{ $productPieces > 1 ? 'Parts' : 'Part' }}
+                        </span>
+                    </div>
+                </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        @for($p = 1; $p <= max(1, $productPieces); $p++)
-                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-3">
-                                <div class="flex items-center justify-between border-b pb-2">
-                                    <span class="text-xs font-bold text-gray-700">Part {{ $p }}</span>
+                <!-- Right Column: Horizontal Scrolling/Grid Part Matrix (Space Efficient) -->
+                <div class="xl:w-3/4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                        @for($p = 1; $p <= $productPieces; $p++)
+                            <div class="bg-gray-50/75 rounded-lg border border-gray-200/70 p-2.5 flex flex-col justify-between gap-2">
+                                
+                                <!-- Part Header & Pricing Type Selector -->
+                                <div class="flex items-center justify-between border-b border-gray-200/60 pb-1.5">
+                                    <span class="text-[11px] font-extrabold text-gray-700">Part {{ $p }}</span>
                                     <select 
                                         wire:model="buffPieces.{{ $item->product_id }}.{{ $p }}.pricing_type" 
-                                        class="text-[10px] rounded border-gray-300 py-0.5 px-1 focus:border-indigo-500 focus:ring-indigo-500 text-gray-600 font-semibold">
+                                        class="text-[10px] rounded border-gray-300 py-0.5 px-1 bg-white focus:border-indigo-500 focus:ring-indigo-500 text-gray-600 font-semibold shadow-2xs">
                                         <option value="piece">Per Piece</option>
                                         <option value="inch">Per Inch</option>
                                     </select>
                                 </div>
                                 
-                                <div class="grid grid-cols-3 gap-2">
+                                <!-- Quantities & Price Inputs Grid -->
+                                <div class="grid grid-cols-3 gap-1.5">
                                     <div>
-                                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Order Qty</label>
+                                        <label class="block text-[9px] font-bold text-gray-400 uppercase mb-0.5">Order</label>
                                         <input 
                                             type="number" 
                                             wire:model="buffPieces.{{ $item->product_id }}.{{ $p }}.order_qty" 
-                                            class="w-full text-center rounded-md border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500 py-1.5"
+                                            class="w-full text-center rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500 py-1 bg-white font-medium"
+                                            placeholder="0"
                                         >
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Recv Qty</label>
+                                        <label class="block text-[9px] font-bold text-emerald-600 uppercase mb-0.5">Recv</label>
                                         <input 
                                             type="number" 
                                             wire:model="buffPieces.{{ $item->product_id }}.{{ $p }}.received_qty" 
-                                            class="w-full text-center rounded-md border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500 py-1.5"
+                                            class="w-full text-center rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500 py-1 bg-white font-semibold text-emerald-700"
+                                            placeholder="0"
                                         >
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Price</label>
+                                        <label class="block text-[9px] font-bold text-indigo-600 uppercase mb-0.5">Price</label>
                                         <input 
                                             type="number" step="0.01"
                                             wire:model="buffPieces.{{ $item->product_id }}.{{ $p }}.price_per_unit" 
-                                            class="w-full text-center rounded-md border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500 py-1.5"
+                                            class="w-full text-center rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500 py-1 bg-white font-semibold text-indigo-700"
+                                            placeholder="0.00"
                                         >
                                     </div>
                                 </div>
@@ -327,9 +342,11 @@
                         @endfor
                     </div>
                 </div>
-            @endforeach
-        </div>
 
+            </div>
+        </div>
+    @endforeach
+</div>
         <div class="mt-6 flex justify-end">
             <button wire:click="updateBuff" wire:loading.attr="disabled" class="inline-flex items-center px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 transition disabled:opacity-50 shadow-sm">
                 <svg wire:loading wire:target="updateBuff" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

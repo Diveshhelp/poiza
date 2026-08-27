@@ -51,22 +51,29 @@ class OrderProcessManager extends Component
 
             // 2. Initialize Buff pieces (Scoped strictly to this specific order AND product)
             if ($item->product_id) {
-                $existingBuff = \App\Models\BuffPiece::where('order_id', $this->order->id) // Scope to current order
+                $existingBuff = \App\Models\BuffPiece::where('order_id', $this->order->id) 
                     ->where('product_id', $item->product_id)
                     ->where('piece_number', $i)
                     ->first();
 
-                // Fetch default price from master buff_prices table if not saved yet
+                // Fetch default price and pricing type from master buff_prices table
                 $defaultPrice = 0;
+                $defaultPricingType = 'piece'; // Default fallback
+
                 if ($item->product && $item->product->buffPrices) {
                     $priceRow = $item->product->buffPrices->where('piece_number', $i)->first();
-                    $defaultPrice = $priceRow ? $priceRow->price_per_piece : 0;
+                    if ($priceRow) {
+                        $defaultPrice = $priceRow->price_per_piece ?? 0;
+                        $defaultPricingType = $priceRow->pricing_type ?? 'piece';
+                    }
                 }
 
                 $this->buffPieces[$item->product_id][$i]['order_qty'] = $existingBuff ? $existingBuff->order_qty : $item->quantity;
                 $this->buffPieces[$item->product_id][$i]['received_qty'] = $existingBuff ? $existingBuff->received_qty : 0;
                 $this->buffPieces[$item->product_id][$i]['price_per_unit'] = $existingBuff ? $existingBuff->price_per_unit : $defaultPrice;
-                $this->buffPieces[$item->product_id][$i]['pricing_type'] = $existingBuff ? $existingBuff->pricing_type : 'piece';
+                
+                // Priority: Saved order buff piece pricing type -> Master buff_prices table pricing type -> 'piece'
+                $this->buffPieces[$item->product_id][$i]['pricing_type'] = $existingBuff ? ($existingBuff->pricing_type ?? $defaultPricingType) : $defaultPricingType;
             }
         }
     }
