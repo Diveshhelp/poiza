@@ -3,6 +3,10 @@
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\NatureofworkController;
 use App\Http\Livewire\BuffPriceManager;
+use App\Livewire\DioraCostCalculatorManager;
+use App\Livewire\DioraOrderManager;
+use App\Livewire\DioraCustomerManager;
+use App\Livewire\DioraProductManager;
 use App\Livewire\AuthorityManager;
 use App\Livewire\BranchManager;
 use App\Livewire\BugTrackingManager;
@@ -11,6 +15,7 @@ use App\Livewire\CustomerEmails;
 use App\Livewire\Customers;
 use App\Livewire\CustomTaskManager;
 use App\Livewire\DeletedMyDocuments;
+use App\Livewire\DioraStockManager;
 use App\Livewire\DocumentSender;
 use App\Livewire\DropboxAuth;
 use App\Livewire\DropboxAuthCallback;
@@ -147,6 +152,14 @@ Route::middleware([
     Route::get('/orders', Orders::class)->name('orders');
     Route::get('/order-process/{order}', OrderProcessManager::class)->name('order-process');
     Route::get('/buff-prices', \App\Livewire\BuffPriceManager::class)->name('buff-prices');
+
+
+    //Diora Routes
+    Route::get('/diora-products', DioraProductManager::class)->name('diora-products');
+    Route::get('/diora-customers', DioraCustomerManager::class)->name('diora-customers');
+    Route::get('/diora-stock', DioraStockManager::class)->name('diora-stock');
+    Route::get('/diora-orders', DioraOrderManager::class)->name('diora-orders');
+    Route::get('/diora-cost-calculator', DioraCostCalculatorManager::class)->name('diora-cost-calculator');
 
     Route::get('/my-photos', MyPhotos::class)->name('my-photos');
     Route::get('/photos', Photos::class)->name('photos');
