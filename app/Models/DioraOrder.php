@@ -14,13 +14,17 @@ class DioraOrder extends Model
     protected $table = 'diora_orders';
 
     protected $fillable = [
-        'order_no',
-        'diora_customer_id',
-        'status',
-        'total_amount',
-        'order_date',
-        'notes',
-    ];
+    'order_no',
+    'diora_customer_id',
+    'status',
+    'subtotal',
+    'discount_type',
+    'discount_value',
+    'discount_amount',
+    'total_amount',
+    'order_date',
+    'notes',
+];
 
     public function customer(): BelongsTo
     {

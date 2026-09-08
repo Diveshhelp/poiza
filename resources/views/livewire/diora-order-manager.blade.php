@@ -93,9 +93,19 @@
                             </td>
                             <td class="px-4 py-3 text-right whitespace-nowrap">
                                 <div class="inline-flex items-center space-x-1">
+                                    <!-- Download Delivery Challan PDF -->
+                                    <button wire:click="generateChallan({{ $order->id }})" title="Download Delivery Challan PDF" class="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                    </button>
+                                    <!-- Edit Order -->
+                                    <button wire:click="editOrder({{ $order->id }})" title="Edit Order" class="p-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg transition">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                    </button>
+                                    <!-- View Order -->
                                     <button wire:click="view({{ $order->id }})" title="View Order" class="p-1.5 bg-sky-50 text-sky-600 hover:bg-sky-100 rounded-lg transition">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </button>
+                                    <!-- Delete Order -->
                                     <button wire:click="delete({{ $order->id }})" onclick="confirm('Are you sure you want to delete this order and restore its inventory?') || event.stopImmediatePropagation()" title="Delete Order" class="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                     </button>
@@ -117,12 +127,12 @@
         </div>
     </div>
 
-    <!-- CREATE ORDER MODAL --><!-- CREATE ORDER MODAL -->
+    <!-- CREATE / EDIT ORDER MODAL -->
     @if($isModalOpen)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
             <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-6 space-y-4 my-8">
                 <div class="flex justify-between items-center border-b pb-3">
-                    <h3 class="font-bold text-gray-900 text-base">Create New Order</h3>
+                    <h3 class="font-bold text-gray-900 text-base">{{ $editingOrderId ? 'Edit Order #' : 'Create New Order' }}</h3>
                     <button wire:click="closeModal" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
                 </div>
 
@@ -161,6 +171,7 @@
                     </div>
 
                     <!-- Dynamic Order Items Repeater -->
+                    <!-- Dynamic Order Items Repeater -->
                     <div class="sm:col-span-3 space-y-3 border-t pt-3">
                         <div class="flex justify-between items-center">
                             <label class="font-bold text-gray-800 text-xs uppercase tracking-wider">Order Items</label>
@@ -170,8 +181,8 @@
                         </div>
 
                         @foreach($orderItems as $index => $item)
-                            <div class="flex items-center gap-2 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                <div class="flex-1">
+                            <div class="flex flex-col sm:flex-row items-center gap-2 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                                <div class="w-full sm:flex-1">
                                     <select wire:model.live="orderItems.{{ $index }}.product_id" class="w-full rounded-lg border-gray-300 py-1 px-2 bg-white text-xs">
                                         <option value="">-- Select Product --</option>
                                         @foreach($products as $prod)
@@ -180,16 +191,49 @@
                                     </select>
                                     @error("orderItems.{$index}.product_id") <span class="text-rose-500 text-[10px] block mt-0.5">Required</span> @enderror
                                 </div>
+                                <div class="w-full sm:w-32">
+                                    <select wire:model="orderItems.{{ $index }}.set_type" class="w-full rounded-lg border-gray-300 py-1 px-2 bg-white text-xs font-semibold text-gray-700">
+                                        <option value="Round Dabi">Round Dabi</option>
+                                        <option value="Choras Dabi">Choras Dabi</option>
+                                        <option value="Plate">Plate</option>
+                                    </select>
+                                </div>
                                 <div class="w-20">
-                                    <input type="number" wire:model="orderItems.{{ $index }}.quantity" min="1" placeholder="Qty" class="w-full rounded-lg border-gray-300 py-1 text-center text-xs">
+                                    <input type="number" wire:model.live="orderItems.{{ $index }}.quantity" min="1" placeholder="Qty" class="w-full rounded-lg border-gray-300 py-1 text-center text-xs">
                                 </div>
                                 <div class="w-24">
-                                    <input type="number" step="0.01" wire:model="orderItems.{{ $index }}.price" placeholder="Price" class="w-full rounded-lg border-gray-300 py-1 text-center text-xs">
+                                    <input type="number" step="0.01" wire:model.live="orderItems.{{ $index }}.price" placeholder="Rate" class="w-full rounded-lg border-gray-300 py-1 text-center text-xs font-bold">
                                 </div>
                                 <button type="button" wire:click="removeOrderItem({{ $index }})" class="p-1 text-rose-500 hover:text-rose-700 font-bold">&times;</button>
                             </div>
                         @endforeach
                         @error('orderItems') <span class="text-rose-500 text-[10px] block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <!-- Grand Total Discount Section -->
+                    @php
+                        $liveTotals = $this->calculateGrandTotal();
+                    @endphp
+                    <div class="sm:col-span-3 bg-indigo-50/60 p-4 rounded-2xl border border-indigo-100 space-y-3">
+                        <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
+                            <div class="flex items-center gap-2 w-full sm:w-auto">
+                                <span class="font-bold text-indigo-900 uppercase">Grand Total Discount:</span>
+                                <select wire:model.live="discount_type" class="rounded-lg border-gray-300 text-xs py-1 px-2 bg-white">
+                                    <option value="percentage">Percentage (%)</option>
+                                    <option value="flat">Flat Amount (₹)</option>
+                                </select>
+                            </div>
+                            <div class="w-full sm:w-40">
+                                <input type="number" step="0.01" wire:model.live="discount_value" placeholder="Discount Value" class="w-full rounded-lg border-gray-300 py-1 px-2 text-center text-xs font-bold">
+                            </div>
+                        </div>
+
+                        <!-- Calculation breakdown preview -->
+                        <div class="border-t border-indigo-200 pt-2 flex flex-col sm:flex-row justify-between text-xs text-indigo-900 font-medium">
+                            <div>Subtotal: ₹{{ number_format($liveTotals['subtotal'], 2) }}</div>
+                            <div>Discount ({{ $discount_type === 'percentage' ? $discount_value . '%' : 'Flat' }}): -₹{{ number_format($liveTotals['discount_amount'], 2) }}</div>
+                            <div class="font-extrabold text-sm text-indigo-700">Grand Total: ₹{{ number_format($liveTotals['total_amount'], 2) }}</div>
+                        </div>
                     </div>
 
                     <div class="sm:col-span-3">
@@ -202,13 +246,14 @@
                     <button wire:click="closeModal" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold">Cancel</button>
                     <button wire:click="storeOrder" wire:loading.attr="disabled" class="inline-flex items-center px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition disabled:opacity-50">
                         <svg wire:loading wire:target="storeOrder" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span wire:loading.remove wire:target="storeOrder">Place Order</span>
+                        <span wire:loading.remove wire:target="storeOrder">{{ $editingOrderId ? 'Update Order' : 'Place Order' }}</span>
                         <span wire:loading wire:target="storeOrder">Processing...</span>
                     </button>
                 </div>
             </div>
         </div>
     @endif
+
     <!-- VIEW ORDER DETAILS MODAL -->
     @if($isViewModalOpen && $viewOrder)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
@@ -274,8 +319,11 @@
                     @endif
                 </div>
 
-                <div class="flex justify-end pt-3 border-t">
-                    <button wire:click="closeViewModal" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold">Close</button>
+                <div class="flex justify-between items-center pt-3 border-t">
+                    <button type="button" wire:click="generateChallan({{ $viewOrder->id }})" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition">
+                        📥 Download Challan PDF
+                    </button>
+                    <button type="button" wire:click="closeViewModal" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold">Close</button>
                 </div>
             </div>
         </div>

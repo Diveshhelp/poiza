@@ -11,7 +11,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\DB;
 use Throwable;
-
+use Barryvdh\DomPDF\Facade\Pdf;
 class DioraOrderManager extends Component
 {
     use WithPagination;
@@ -29,7 +29,8 @@ class DioraOrderManager extends Component
     public $orderItems = []; 
     
     public $viewOrder = null;
-
+    public $discount_type = 'percentage'; // 'percentage' or 'flat'
+    public $discount_value = 0;
     protected function rules()
     {
         return [
@@ -40,6 +41,8 @@ class DioraOrderManager extends Component
             'orderItems.*.product_id' => 'required|exists:diora_products,id',
             'orderItems.*.quantity'   => 'required|integer|min:1',
             'orderItems.*.price'      => 'required|numeric|min:0',
+            'discount_type'  => 'required|in:percentage,flat',
+            'discount_value' => 'nullable|numeric|min:0',
         ];
     }
 
@@ -56,6 +59,32 @@ class DioraOrderManager extends Component
         $this->addOrderItem();
     }
 
+    public function calculateGrandTotal()
+{
+    $subtotal = 0;
+    foreach ($this->orderItems as $item) {
+        $qty = (float)($item['quantity'] ?? 0);
+        $price = (float)($item['price'] ?? 0);
+        $subtotal += $qty * $price;
+    }
+
+    $discVal = (float)($this->discount_value ?? 0);
+    $discAmount = 0;
+
+    if ($this->discount_type === 'percentage') {
+        $discAmount = $subtotal * ($discVal / 100);
+    } else {
+        $discAmount = $discVal; // flat amount
+    }
+
+    $finalTotal = max(0, $subtotal - $discAmount);
+
+    return [
+        'subtotal' => round($subtotal, 2),
+        'discount_amount' => round($discAmount, 2),
+        'total_amount' => round($finalTotal, 2),
+    ];
+}
     public function updatingSearch()
     {
         $this->resetPage();
@@ -112,63 +141,7 @@ class DioraOrderManager extends Component
         $this->viewOrder = null;
     }
 
-    private function resetForm()
-    {
-        $this->diora_customer_id = null;
-        $this->order_date = date('Y-m-d');
-        $this->notes = '';
-        $this->status = 'pending';
-        $this->orderItems = [];
-        $this->addOrderItem();
-        $this->resetErrorBag();
-    }
 
-    public function storeOrder()
-    {
-        $this->validate();
-
-        try {
-            DB::transaction(function () {
-                $totalAmount = 0;
-                foreach ($this->orderItems as $item) {
-                    $totalAmount += $item['quantity'] * $item['price'];
-                }
-
-                $orderNo = 'DR-' . strtoupper(uniqid());
-
-                $order = DioraOrder::create([
-                    'order_no'          => $orderNo,
-                    'diora_customer_id' => $this->diora_customer_id,
-                    'status'            => $this->status,
-                    'total_amount'      => $totalAmount,
-                    'order_date'        => $this->order_date,
-                    'notes'             => $this->notes,
-                ]);
-
-                foreach ($this->orderItems as $item) {
-                    DioraOrderItem::create([
-                        'diora_order_id'   => $order->id,
-                        'diora_product_id' => $item['product_id'],
-                        'quantity'         => $item['quantity'],
-                        'price'            => $item['price'],
-                        'total'            => $item['quantity'] * $item['price'],
-                    ]);
-                }
-
-                // If starting in an active state, deduct stock
-                $activeStates = ['confirm', 'process', 'ready_for_dispatch', 'dispatched', 'done'];
-                if (in_array($this->status, $activeStates)) {
-                    $this->deductStockForOrder($order);
-                }
-            });
-
-            session()->flash('message', 'Order placed successfully and inventory updated.');
-            $this->closeModal();
-
-        } catch (Throwable $e) {
-            session()->flash('error', 'Failed to save order: ' . $e->getMessage());
-        }
-    }
 
     public function updateOrderStatus($orderId, $newStatus)
     {
@@ -251,7 +224,157 @@ class DioraOrderManager extends Component
             session()->flash('error', 'Failed to delete order: ' . $e->getMessage());
         }
     }
+    public $editingOrderId = null; // Tracks if we are editing an existing order
 
+    public function editOrder($id)
+{
+    try {
+        $order = DioraOrder::with('items')->findOrFail($id);
+        $this->editingOrderId = $order->id;
+        $this->diora_customer_id = $order->diora_customer_id;
+        $this->order_date = $order->order_date;
+        $this->notes = $order->notes;
+        $this->status = $order->status;
+        $this->discount_type = $order->discount_type ?? 'percentage';
+        $this->discount_value = $order->discount_value ?? 0;
+        
+        $this->orderItems = [];
+        foreach ($order->items as $item) {
+            $this->orderItems[] = [
+                'product_id' => $item->diora_product_id,
+                'set_type' => $item->set_type ?? 'Round Dabi',
+                'quantity' => $item->quantity,
+                'price' => $item->price,
+            ];
+        }
+
+        $this->isModalOpen = true;
+    } catch (Throwable $e) {
+        session()->flash('error', 'Unable to load order for editing.');
+    }
+}   public function storeOrder()
+{
+    $this->validate();
+
+    try {
+        DB::transaction(function () {
+            $totals = $this->calculateGrandTotal();
+            $activeStates = ['confirm', 'process', 'ready_for_dispatch', 'dispatched', 'done'];
+
+            if ($this->editingOrderId) {
+                // --- UPDATE EXISTING ORDER ---
+                $order = DioraOrder::with('items')->findOrFail($this->editingOrderId);
+                $oldStatus = $order->status;
+
+                if (in_array($oldStatus, $activeStates)) {
+                    $this->restoreStockForOrder($order);
+                }
+
+                $order->update([
+                    'diora_customer_id' => $this->diora_customer_id,
+                    'status'            => $this->status,
+                    'subtotal'          => $totals['subtotal'],
+                    'discount_type'     => $this->discount_type,
+                    'discount_value'    => $this->discount_value,
+                    'discount_amount'   => $totals['discount_amount'],
+                    'total_amount'      => $totals['total_amount'],
+                    'order_date'        => $this->order_date,
+                    'notes'             => $this->notes,
+                ]);
+
+                $order->items()->delete();
+                foreach ($this->orderItems as $item) {
+                    DioraOrderItem::create([
+                        'diora_order_id'   => $order->id,
+                        'diora_product_id' => $item['product_id'],
+                        'set_type'         => $item['set_type'],
+                        'quantity'         => $item['quantity'],
+                        'price'            => $item['price'],
+                        'total'            => $item['quantity'] * $item['price'],
+                    ]);
+                }
+
+                if (in_array($this->status, $activeStates)) {
+                    $this->deductStockForOrder($order);
+                }
+
+                session()->flash('message', "Order #{$order->order_no} updated successfully.");
+
+            } else {
+                // --- CREATE NEW ORDER ---
+                $orderNo = 'DR-' . strtoupper(uniqid());
+
+                $order = DioraOrder::create([
+                    'order_no'          => $orderNo,
+                    'diora_customer_id' => $this->diora_customer_id,
+                    'status'            => $this->status,
+                    'subtotal'          => $totals['subtotal'],
+                    'discount_type'     => $this->discount_type,
+                    'discount_value'    => $this->discount_value,
+                    'discount_amount'   => $totals['discount_amount'],
+                    'total_amount'      => $totals['total_amount'],
+                    'order_date'        => $this->order_date,
+                    'notes'             => $this->notes,
+                ]);
+
+                foreach ($this->orderItems as $item) {
+                    DioraOrderItem::create([
+                        'diora_order_id'   => $order->id,
+                        'diora_product_id' => $item['product_id'],
+                        'set_type'         => $item['set_type'],
+                        'quantity'         => $item['quantity'],
+                        'price'            => $item['price'],
+                        'total'            => $item['quantity'] * $item['price'],
+                    ]);
+                }
+
+                if (in_array($this->status, $activeStates)) {
+                    $this->deductStockForOrder($order);
+                }
+
+                session()->flash('message', 'Order placed successfully and inventory updated.');
+            }
+        });
+
+        $this->closeModal();
+
+    } catch (Throwable $e) {
+        session()->flash('error', 'Failed to save order: ' . $e->getMessage());
+    }
+}
+
+private function resetForm()
+{
+    $this->editingOrderId = null;
+    $this->diora_customer_id = null;
+    $this->order_date = date('Y-m-d');
+    $this->notes = '';
+    $this->status = 'pending';
+    $this->discount_type = 'percentage';
+    $this->discount_value = 0;
+    $this->orderItems = [];
+    $this->addOrderItem();
+    $this->resetErrorBag();
+}
+
+    // Delivery Challan PDF Generator
+    public function generateChallan($orderId)
+    {
+        try {
+            $order = DioraOrder::with(['customer', 'items.product'])->findOrFail($orderId);
+
+            $pdf = Pdf::loadView('pdf.diora-challan', [
+                'order' => $order
+            ]);
+
+            return response()->streamDownload(function () use ($pdf) {
+                echo $pdf->output();
+            }, 'Delivery-Challan-' . $order->order_no . '.pdf');
+
+        } catch (Throwable $e) {
+            session()->flash('error', 'Failed to generate challan PDF: ' . $e->getMessage());
+        }
+    }
     public function render()
     {
         $orders = DioraOrder::with(['customer', 'items'])

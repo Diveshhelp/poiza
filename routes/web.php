@@ -6,6 +6,7 @@ use App\Http\Livewire\BuffPriceManager;
 use App\Livewire\DioraCostCalculatorManager;
 use App\Livewire\DioraOrderManager;
 use App\Livewire\DioraCustomerManager;
+use App\Livewire\DioraProductCatalog;
 use App\Livewire\DioraProductManager;
 use App\Livewire\AuthorityManager;
 use App\Livewire\BranchManager;
@@ -115,7 +116,7 @@ Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $requ
     return redirect('/dashboard');
 })->middleware(['auth', 'signed'])->name('verification.verify');
 
-
+Route::get('/catalog', DioraProductCatalog::class)->name('catalog');
 
 
 Route::get('/login', function () {
