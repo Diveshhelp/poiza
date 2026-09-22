@@ -314,8 +314,11 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg fixed-top" id="navbar">
         <div class="container">
-            <a class="navbar-brand" href="#">
-                <i class="bi bi-tools me-2"></i>Diora Hardware ERP
+          <a class="navbar-brand d-inline-flex align-items-center gap-2" href="#">
+                <span class="d-inline-flex align-items-center justify-content-center  rounded px-2 py-1 shadow-sm border border-secondary">
+                    <img src="logo-.png" alt="Poiza Logo" height="64" class="d-inline-block align-text-top object-fit-contain" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('d-none');">
+                    <span class="d-none text-warning fw-bold font-monospace px-1">P</span>
+                </span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                 aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
