@@ -1,0 +1,26 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('customers', function (Blueprint $table) {
+            // Drop unique index
+            $table->dropUnique('customers_email_unique');
+            
+            // Make column nullable
+            $table->string('email')->nullable()->change();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('customers', function (Blueprint $table) {
+            $table->string('email')->nullable(false)->unique()->change();
+        });
+    }
+};

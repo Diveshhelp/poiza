@@ -96,7 +96,7 @@ class Orders extends Component
             ->when($this->dateTo, function ($query) {
                 $query->whereDate('created_at', '<=', $this->dateTo);
             })
-            ->latest()
+            ->orderBy('id', 'desc')
             ->paginate(10);
 
         $customersList = Order::select('customer_name')->distinct()->pluck('customer_name');

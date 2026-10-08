@@ -13,7 +13,14 @@
                 <p class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold uppercase tracking-wider mt-0.5">Wholesale Hardware Catalog</p>
             </div>
         </div>
-        <div class="hidden sm:block text-right">
+       <div class="hidden sm:flex items-center gap-3">
+            <a href="{{ route('orders') }}" 
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/80 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition border border-gray-200 dark:border-gray-600 shadow-xs">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                </svg>
+                Back to Portal
+            </a>
             <span class="text-xs text-gray-400 dark:text-gray-500 font-mono">Secure Ordering Portal</span>
         </div>
     </div>
@@ -39,15 +46,36 @@
     <!-- AUTHORIZED: FULL ORDER WORKFLOW -->
     <!-- Header Steps Bar -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-gray-200 dark:border-gray-700 gap-2">
-       <div>
-            <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Order Portal</h2>
-            <div class="flex items-center gap-2 mt-0.5">
-                <p class="text-xs text-gray-500 dark:text-gray-400">Verified Mobile: <span class="font-semibold text-indigo-600 dark:text-indigo-400">{{ $customer_phone }}</span></p>
-                <button wire:click="logout" type="button" class="text-[11px] text-red-500 hover:text-red-700 dark:text-red-400 underline font-medium ml-1">
-                    [ Change Number ]
-                </button>
-            </div>
+       <div class="space-y-1">
+    <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Order Portal</h2>
+
+    {{-- Customer Name & Change Number --}}
+    <div class="flex flex-wrap items-center gap-2 pt-0.5">
+        <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Customer:</span>
+        <span class="text-sm font-bold text-gray-900 dark:text-white">
+            {{ $customer_name ?: 'Valued Customer' }}
+        </span>
+        <button wire:click="logout" type="button" class="text-[11px] text-red-500 hover:text-red-700 dark:text-red-400 underline font-medium ml-1">
+            [ Change Number ]
+        </button>
+    </div>
+
+    {{-- Phone Number --}}
+    <p class="text-xs text-gray-500 dark:text-gray-400">
+        Verified Mobile: <span class="font-semibold text-indigo-600 dark:text-indigo-400">{{ $customer_phone }}</span>
+    </p>
+
+    {{-- Address (displays automatically once loaded) --}}
+    @if(!empty($shipping_address))
+        <div class="flex items-start gap-1.5 pt-1 text-xs text-gray-600 dark:text-gray-300">
+            <svg class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+            </svg>
+            <span class="leading-relaxed">{{ $shipping_address }}</span>
         </div>
+    @endif
+</div>
         <div class="flex items-center gap-2 text-xs sm:text-sm font-semibold">
             <span class="px-3 py-1 rounded-full {{ $step === 1 ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300' }}">1. Products</span>
             <span>&rarr;</span>
@@ -198,30 +226,85 @@
                         </span>
                     </h3>
 
-                    @if(empty($this->cart))
-                        <p class="text-xs text-gray-500 dark:text-gray-400 italic py-6 text-center">No products added yet. Choose quantities from the catalog.</p>
-                    @else
-                        <div class="space-y-2.5 mb-4 max-h-[380px] overflow-y-auto pr-1">
-                            @foreach($this->cartItems as $item)
-                                <div class="flex justify-between items-center text-xs border-b pb-2 dark:border-gray-700 gap-2">
-                                    <div class="min-w-0 flex-1">
-                                        <div class="font-semibold text-gray-900 dark:text-white truncate">{{ $item['product']->product_name }}</div>
-                                        <div class="text-gray-500 font-mono text-[10px]">Code: {{ $item['product']->product_code }} | ₹{{ number_format($item['unit_price'], 2) }}</div>
-                                    </div>
-                                    <div class="flex items-center gap-2 shrink-0">
-                                        <span class="bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded text-[11px]">
-                                            {{ $item['quantity'] }} {{ ucfirst($item['unit_type']) }}{{ $item['quantity'] > 1 ? 's' : '' }}
-                                        </span>
-                                        <button wire:click="removeFromCart('{{ $item['cart_key'] }}')" class="text-red-500 hover:text-red-700 font-bold text-base px-1">&times;</button>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                        <div class="pt-3 border-t dark:border-gray-700 flex justify-between font-bold text-sm text-gray-900 dark:text-white">
-                            <span>Subtotal:</span>
-                            <span class="text-emerald-600 dark:text-emerald-400">₹{{ number_format($this->cartSubtotal, 2) }}</span>
-                        </div>
-                    @endif
+                   @if(empty($this->cart))
+    <div class="py-10 text-center">
+        <div class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 mb-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+            </svg>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 italic">No products added yet.</p>
+    </div>
+@else
+    {{-- Compact, smooth scrollable selection list --}}
+    <div class="space-y-2 mb-3 max-h-[420px] overflow-y-auto pr-1 divide-y divide-gray-100 dark:divide-gray-700/60">
+        @foreach($this->cartItems as $item)
+            <div wire:key="cart-item-{{ $item['cart_key'] }}" 
+                 class="pt-2 first:pt-0 pb-1.5 flex items-start justify-between gap-2.5 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 px-1.5 rounded-lg transition-colors group">
+                
+                {{-- Product Information Block --}}
+                <div class="min-w-0 flex-1">
+                    <p class="font-medium text-xs text-gray-900 dark:text-gray-100 truncate leading-snug" title="{{ $item['product']->product_name }}">
+                        {{ $item['product']->product_name }}
+                    </p>
+
+                    {{-- Attribute Badges & Identification inline --}}
+                    <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                        @if(!empty($item['product']->finish))
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/60">
+                                {{ $item['product']->finish }}
+                            </span>
+                        @endif
+
+                        @if(!empty($item['product']->size))
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-gray-700 text-slate-700 dark:text-gray-300">
+                                {{ $item['product']->size }}
+                            </span>
+                        @endif
+
+                        <span class="text-[10px] font-mono text-gray-400 dark:text-gray-500">
+                            #{{ $item['product']->product_code }}
+                        </span>
+                    </div>
+
+                    {{-- Item Calculation details --}}
+                    <div class="flex items-center gap-2 mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                        <span>₹{{ number_format($item['unit_price'], 2) }}</span>
+                        <span>&times;</span>
+                        <span class="font-semibold text-gray-700 dark:text-gray-300">{{ $item['quantity'] }} {{ ucfirst($item['unit_type']) }}</span>
+                    </div>
+                </div>
+
+                {{-- Price & Remove Action --}}
+                <div class="flex flex-col items-end shrink-0 pt-0.5">
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs font-bold text-gray-900 dark:text-white">
+                            ₹{{ number_format($item['subtotal'], 2) }}
+                        </span>
+                        
+                        <button wire:click="removeFromCart('{{ $item['cart_key'] }}')" 
+                                type="button"
+                                title="Remove item" 
+                                class="text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 transition-colors p-0.5 -mr-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        @endforeach
+    </div>
+
+    {{-- Subtotal Footer Bar --}}
+    <div class="pt-2.5 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-xs">
+        <span class="text-gray-500 dark:text-gray-400 font-medium">Subtotal</span>
+        <span class="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+            ₹{{ number_format($this->cartSubtotal, 2) }}
+        </span>
+    </div>
+@endif
                 </div>
 
                 <button wire:click="proceedToCheckout" @if(empty($this->cart)) disabled @endif class="w-full mt-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition shadow flex items-center justify-center gap-2">

@@ -103,7 +103,7 @@ class Customers extends Component
         $data = [
             'name' => $this->name,
             'company_name' => $this->company_name,
-            'email' => $this->email,
+            'email' => $this->email??null,
             'phone' => $this->phone,
             'gstin' => $this->gstin,
             'customer_type' => $this->customer_type,
